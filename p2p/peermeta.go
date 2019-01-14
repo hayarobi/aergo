@@ -6,6 +6,7 @@
 package p2p
 
 import (
+	"fmt"
 	"time"
 
 	"strconv"
@@ -14,10 +15,16 @@ import (
 	"github.com/libp2p/go-libp2p-peer"
 )
 
+const (
+	UnknownName = "unknown"
+	NotManaged = 0
+)
 // PeerMeta contains non changeable information of peer node during connected state
 // TODO: PeerMeta is almost same as PeerAddress, so TODO to unify them.
 type PeerMeta struct {
 	ID peer.ID
+	Nick string
+
 	// IPAddress is human readable form of ip address such as "192.168.0.1" or "2001:0db8:0a0b:12f0:33:1"
 	IPAddress  string
 	Port       uint32
@@ -27,13 +34,22 @@ type PeerMeta struct {
 	Outbound   bool
 }
 
+func (m *PeerMeta) Pretty() string {
+	pid := m.ID.Pretty()
+	if idlen := len(pid); idlen > 10 {
+	 	return fmt.Sprintf("%s:%s..%s",m.Nick,pid[:2],pid[len(pid)-6:])
+	} else {
+		return fmt.Sprintf("%s:%s",m.Nick,pid)
+	}
+}
+
 func (m PeerMeta) String() string {
 	return m.ID.Pretty() + "/" + m.IPAddress + ":" + strconv.Itoa(int(m.Port))
 }
 
 // FromPeerAddress convert PeerAddress to PeerMeta
 func FromPeerAddress(addr *types.PeerAddress) PeerMeta {
-	meta := PeerMeta{IPAddress: addr.Address,
+	meta := PeerMeta{IPAddress: addr.Address, Nick:UnknownName,
 		Port: addr.Port, ID: peer.ID(addr.PeerID)}
 	return meta
 }
