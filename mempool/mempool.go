@@ -211,7 +211,7 @@ func (mp *MemPool) Receive(context actor.Context) {
 
 	switch msg := context.Message().(type) {
 	case *message.MemPoolPut:
-		mp.verifier.Request(msg.Tx, context.Sender())
+		mp.verifier.Request(msg, context.Sender())
 	case *message.MemPoolGet:
 		txs, err := mp.get(msg.MaxBlockBodySize)
 		context.Respond(&message.MemPoolGetRsp{

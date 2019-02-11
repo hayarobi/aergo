@@ -55,6 +55,7 @@ func TestSyncManager_HandleBlockProducedNotice(t *testing.T) {
 			mockPeer := p2pmock.NewMockRemotePeer(ctrl)
 			mockPeer.EXPECT().Name().Return("16..aadecf@1").AnyTimes()
 			mockPeer.EXPECT().ID().Return(sampleMeta.ID).AnyTimes()
+			mockPeer.EXPECT().ManageNumber().Return(uint32(1)).AnyTimes()
 			actorCallCnt := 0
 			if test.wantActorCall {
 				actorCallCnt = 1
@@ -241,7 +242,8 @@ func TestSyncManager_HandleGetBlockResponse(t *testing.T) {
 			mockPM := p2pmock.NewMockPeerManager(ctrl)
 			mockActor := p2pmock.NewMockActorService(ctrl)
 			mockPeer := p2pmock.NewMockRemotePeer(ctrl)
-			mockPeer.EXPECT().ID().Return(sampleMeta.ID)
+			mockPeer.EXPECT().ID().Return(sampleMeta.ID).MinTimes(1)
+			mockPeer.EXPECT().ManageNumber().Return(uint32(1)).AnyTimes()
 
 			mockActor.EXPECT().SendRequest(gomock.Any(), gomock.Any()).Times(test.chainCallCnt)
 			dummyMsgID := p2pcommon.NewMsgID()

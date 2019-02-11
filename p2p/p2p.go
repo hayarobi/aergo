@@ -9,6 +9,8 @@ import (
 	"github.com/aergoio/aergo/p2p/p2pkey"
 	"github.com/aergoio/aergo/p2p/raftsupport"
 	"github.com/aergoio/aergo/p2p/transport"
+	"github.com/aergoio/aergo-actor/router"
+	"github.com/aergoio/aergo/p2p/audit"
 	"sync"
 	"time"
 
@@ -43,7 +45,9 @@ type P2P struct {
 	signer  p2pcommon.MsgSigner
 	ca      types.ChainAccessor
 	consacc consensus.ConsensusAccessor
+	bm     audit.BlacklistManager
 
+	auditor  *actor.PID
 	mutex sync.Mutex
 }
 
@@ -64,6 +68,8 @@ func NewP2P(cfg *config.Config, chainsvc *chain.ChainService) *P2P {
 func (p2ps *P2P) BeforeStart() {}
 
 func (p2ps *P2P) AfterStart() {
+	p2ps.auditor = actor.Spawn(router.NewRoundRobinPool(1).WithFunc(p2ps.ReceiveResp))
+
 	p2ps.mutex.Lock()
 
 	nt := p2ps.nt
@@ -87,6 +93,9 @@ func (p2ps *P2P) BeforeStop() {
 	nt := p2ps.nt
 	p2ps.mutex.Unlock()
 	nt.Stop()
+	if p2ps.auditor != nil {
+		p2ps.auditor.Stop()
+	}
 }
 
 // Statistics show statistic information of p2p module. NOTE: It it not implemented yet
@@ -131,6 +140,7 @@ func (p2ps *P2P) initP2P(cfg *config.Config, chainsvc *chain.ChainService) {
 	p2ps.chainID = chainID
 
 	useRaft := genesis.ConsensusType() == consensus.ConsensusName[consensus.ConsensusRAFT]
+	blacklistMan := audit.NewBlacklistManager()
 
 	netTransport := transport.NewNetworkTransport(cfg.P2P, p2ps.Logger)
 	signer := newDefaultMsgSigner(p2pkey.NodePrivKey(), p2pkey.NodePubKey(), p2pkey.NodeID())
@@ -140,7 +150,7 @@ func (p2ps *P2P) initP2P(cfg *config.Config, chainsvc *chain.ChainService) {
 
 	//reconMan := newReconnectManager(p2ps.Logger)
 	metricMan := metric.NewMetricManager(10)
-	peerMan := NewPeerManager(p2ps, p2ps, p2ps, cfg, signer, netTransport, metricMan, p2ps.Logger, mf, useRaft)
+	peerMan := NewPeerManager(p2ps, p2ps, p2ps, cfg, signer, netTransport, metricMan, p2ps.Logger, mf, useRaft, blacklistMan)
 	syncMan := newSyncManager(p2ps, peerMan, p2ps.Logger)
 	versionMan := newDefaultVersionManager(peerMan, p2ps, p2ps.Logger, p2ps.chainID)
 	// connect managers each other
@@ -155,6 +165,8 @@ func (p2ps *P2P) initP2P(cfg *config.Config, chainsvc *chain.ChainService) {
 	p2ps.sm = syncMan
 	//p2ps.rm = reconMan
 	p2ps.mm = metricMan
+	p2ps.bm = blacklistMan
+
 	p2ps.mutex.Unlock()
 }
 
@@ -187,8 +199,14 @@ func (p2ps *P2P) Receive(context actor.Context) {
 	case *message.NotifyNewTransactions:
 		p2ps.NotifyNewTX(*msg)
 	case *message.AddBlockRsp:
+		if msg.Err != nil {
+			p2ps.auditor.Request(msg, context.Sender())
+		}
 		// do nothing for now. just for prevent deadletter
-
+	case *message.MemPoolPutRsp:
+		if msg.Err != nil {
+			p2ps.auditor.Request(msg, context.Sender())
+		}
 	case *message.GetSelf:
 		context.Respond(p2ps.nt.SelfMeta())
 	case *message.GetPeers:
@@ -325,5 +343,33 @@ func (p2ps *P2P) CreateHSHandler(p2pVersion p2pcommon.P2PVersion, outbound bool,
 		} else {
 			return NewInbountHSHandler(p2ps.pm, p2ps, p2ps.vm, p2ps.Logger, p2ps.chainID, pid)
 		}
+	}
+}
+
+func (p2ps *P2P) ReceiveResp(context actor.Context) {
+	var peer p2pcommon.RemotePeer
+	var penalty audit.Penalty
+
+	rawMsg := context.Message()
+	switch msg := rawMsg.(type) {
+	case *message.AddBlockRsp:
+		p2ps.Logger.Debug().Err(msg.Err).Msg("got add block failed ")
+		var found bool
+		peer, found = p2ps.pm.GetPeer(msg.Sender.PeerID)
+		if !found { // unknown or already closed
+			return
+		}
+		penalty = audit.GetPenaltyScore(msg.Err)
+		peer.AddPenalty(penalty)
+	// do nothing for now. just for prevent deadletter
+	case *message.MemPoolPutRsp:
+		p2ps.Logger.Debug().Err(msg.Err).Msg("got put tx failed ")
+		var found bool
+		peer, found = p2ps.pm.GetPeer(msg.Sender.PeerID)
+		if !found { // unknown or already closed
+			return
+		}
+		penalty = audit.GetPenaltyScore(msg.Err)
+		peer.AddPenalty(penalty)
 	}
 }

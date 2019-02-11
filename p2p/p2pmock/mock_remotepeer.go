@@ -5,6 +5,7 @@
 package p2pmock
 
 import (
+	audit "github.com/aergoio/aergo/p2p/audit"
 	p2pcommon "github.com/aergoio/aergo/p2p/p2pcommon"
 	types "github.com/aergoio/aergo/types"
 	gomock "github.com/golang/mock/gomock"
@@ -236,6 +237,16 @@ func (m *MockRemotePeer) UpdateLastNotice(blkHash []byte, blkNumber uint64) {
 // UpdateLastNotice indicates an expected call of UpdateLastNotice
 func (mr *MockRemotePeerMockRecorder) UpdateLastNotice(blkHash, blkNumber interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateLastNotice", reflect.TypeOf((*MockRemotePeer)(nil).UpdateLastNotice), blkHash, blkNumber)
+}
+
+// AddPenalty mocks base method
+func (m *MockRemotePeer) AddPenalty(penalty audit.Penalty) {
+	m.ctrl.Call(m, "AddPenalty", penalty)
+}
+
+// AddPenalty indicates an expected call of AddPenalty
+func (mr *MockRemotePeerMockRecorder) AddPenalty(penalty interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddPenalty", reflect.TypeOf((*MockRemotePeer)(nil).AddPenalty), penalty)
 }
 
 // MF mocks base method

@@ -144,6 +144,7 @@ func (th *txResponseHandler) ParsePayload(rawbytes []byte) (p2pcommon.MessageBod
 }
 
 func (th *txResponseHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
+	peer := th.peer
 	data := msgBody.(*types.GetTransactionsResponse)
 	p2putil.DebugLogReceiveResponseMsg(th.logger, th.protocol, msg.ID().String(), msg.OriginalID().String(), th.peer, len(data.Txs))
 
@@ -153,7 +154,7 @@ func (th *txResponseHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.Mes
 		th.logger.Debug().Int(p2putil.LogTxCount, len(data.Txs)).Msg("Request mempool to add txs")
 		//th.actor.SendRequest(message.MemPoolSvc, &message.MemPoolPut{Txs: data.Txs})
 		for _, tx := range data.Txs {
-			th.actor.SendRequest(message.MemPoolSvc, &message.MemPoolPut{Tx: tx})
+			th.actor.SendRequest(message.MemPoolSvc, &message.MemPoolPut{Tx: tx, Sender:&message.SenderContext{peer.ID(), peer.ManageNumber()}})
 		}
 	}
 }

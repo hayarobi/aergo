@@ -193,3 +193,63 @@ type GetClusterRsp struct {
 	Members []*types.MemberAttr
 	Err     error
 }
+// SenderContext is additional information about a remote peer causing inter-actor message
+type SenderContext struct {
+	PeerID       peer.ID
+	ManageNumber uint32
+}
+
+// BlamableError is error which blames message sender for bad request, and contains how big the sender's fault is
+type BlamableError interface {
+	error
+	Size() FaultSize
+}
+
+
+// FaultSize is how big the sender's fault
+type FaultSize int32
+
+const (
+	Tiny FaultSize = iota
+	Small
+	Normal
+	Big
+	// Severe will disconnect peer immediately and add to blacklist to prevent further connection attempt
+	Severe
+)
+
+type StringBlameError struct {
+	size  FaultSize
+	errmsg string
+}
+
+func NewBlamableError(faultSize FaultSize, errmsg string) BlamableError {
+	return &StringBlameError{size: faultSize, errmsg:errmsg}
+}
+
+func (e *StringBlameError) Error() string {
+	return e.errmsg
+}
+
+func (e *StringBlameError) Size() FaultSize {
+	return e.size
+}
+
+type BlamableWrapper struct {
+	size  FaultSize
+	inner error
+}
+
+func NewBlamableWrapper(faultSize FaultSize, originalError error) BlamableError {
+	return &BlamableWrapper{size: faultSize, inner:originalError}
+}
+
+func (bw *BlamableWrapper) Size() FaultSize {
+	return bw.size
+}
+
+func (bw *BlamableWrapper) Error() string {
+	return bw.inner.Error()
+}
+
+

@@ -5,7 +5,9 @@
 
 package p2p
 
-import "time"
+import (
+	"time"
+)
 
 // constants for peer communicating
 const (

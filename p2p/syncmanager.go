@@ -66,9 +66,7 @@ func (sm *syncManager) HandleBlockProducedNotice(peer p2pcommon.RemotePeer, bloc
 		sm.logger.Info().Str(p2putil.LogPeerName, peer.Name()).Str(p2putil.LogBlkHash, block.BlockID().String()).Int("size", block.Size()).Msg("invalid blockProduced notice. block size exceed limit")
 		return
 	}
-
-	sm.actor.SendRequest(message.ChainSvc, &message.AddBlock{PeerID: peer.ID(), Block: block, Bstate: nil})
-
+	sm.actor.SendRequest(message.ChainSvc, &message.AddBlock{PeerID: peer.ID(), Block: block, Bstate: nil, Sender:&message.SenderContext{peer.ID(), peer.ManageNumber()}})
 }
 
 func (sm *syncManager) HandleNewBlockNotice(peer p2pcommon.RemotePeer, data *types.NewBlockNotice) {
@@ -119,7 +117,7 @@ func (sm *syncManager) HandleGetBlockResponse(peer p2pcommon.RemotePeer, msg p2p
 		return
 	}
 
-	sm.actor.SendRequest(message.ChainSvc, &message.AddBlock{PeerID: peerID, Block: block, Bstate: nil})
+	sm.actor.SendRequest(message.ChainSvc, &message.AddBlock{PeerID: peerID, Block: block, Bstate: nil, Sender:&message.SenderContext{peer.ID(), peer.ManageNumber()}})
 }
 
 func (sm *syncManager) HandleNewTxNotice(peer p2pcommon.RemotePeer, hashes []types.TxID, data *types.NewTransactionsNotice) {

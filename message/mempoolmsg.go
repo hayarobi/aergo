@@ -15,11 +15,13 @@ const MemPoolSvc = "MemPoolSvc"
 // MemPoolPut is interface of MemPool service for inserting transactions
 type MemPoolPut struct {
 	Tx *types.Tx
+	Sender *SenderContext
 }
 
 // MemPoolPutRsp defines struct of result for MemPoolPut
 type MemPoolPutRsp struct {
 	Err error
+	Sender *SenderContext
 }
 
 // MemPoolGet is interface of MemPool service for retrieving transactions

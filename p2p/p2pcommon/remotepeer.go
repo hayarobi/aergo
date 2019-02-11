@@ -6,6 +6,7 @@
 package p2pcommon
 
 import (
+	"github.com/aergoio/aergo/p2p/audit"
 	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-peer"
 	"time"
@@ -42,6 +43,8 @@ type RemotePeer interface {
 	UpdateTxCache(hashes []types.TxID) []types.TxID
 	// updateLastNotice change estimate of the last status of remote peer
 	UpdateLastNotice(blkHash []byte, blkNumber uint64)
+
+	AddPenalty(penalty audit.Penalty)
 
 	// TODO
 	MF() MoFactory

@@ -34,7 +34,7 @@ func FailTestGetPeers(t *testing.T) {
 	target := NewPeerManager(nil, nil, mockActorServ,
 		cfg.NewServerContext("", "").GetDefaultConfig().(*cfg.Config),
 		nil, nil, nil,
-		log.NewLogger("test.p2p"), mockMF, false).(*peerManager)
+		log.NewLogger("test.p2p"), mockMF, false, nil).(*peerManager)
 
 	iterSize := 500
 	wg := sync.WaitGroup{}
@@ -75,7 +75,7 @@ func TestPeerManager_GetPeers(t *testing.T) {
 	target := NewPeerManager(nil, nil, mockActorServ,
 		tConfig,
 		nil, nil, nil,
-		tLogger, mockMF, false).(*peerManager)
+		tLogger, mockMF, false, nil).(*peerManager)
 
 	iterSize := 500
 	wg := &sync.WaitGroup{}

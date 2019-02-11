@@ -12,6 +12,7 @@ import (
 )
 
 // this struct calculate roughly approximate mean value.
+// Adding or querying is thread-safe, but Calculate should be called in same goroutine.
 type exponentMetric struct {
 	unCalc        int64
 	averageFactor int64
@@ -34,6 +35,7 @@ func NewExponentMetric15(tickInterval int) DataMetric {
 	return NewExponentMetric(tickInterval, 15 * 60)
 }
 
+// NewExponentMetric create exponentMetric with given calculate interval and mean lifetime
 func NewExponentMetric(interval int, meanTime int) *exponentMetric {
 	decayFactor := math.Exp(-float64(interval)/float64(meanTime))
 	// rounded int value
@@ -54,6 +56,7 @@ func (a *exponentMetric) AddBytes(n int) {
 	atomic.AddInt64(&a.unCalc, int64(n))
 }
 
+// Calculate decayed sum.
 func (a *exponentMetric) Calculate() {
 	count := atomic.LoadInt64(&a.unCalc)
 	atomic.AddInt64(&a.unCalc, -count)

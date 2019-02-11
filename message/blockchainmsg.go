@@ -39,11 +39,13 @@ type AddBlock struct {
 	Bstate interface{}
 	IsSync bool
 	// Bstate *types.BlockState
+	Sender *SenderContext
 }
 type AddBlockRsp struct {
 	BlockNo   types.BlockNo
 	BlockHash []byte
 	Err       error
+	Sender *SenderContext
 }
 type GetState struct {
 	Account []byte
