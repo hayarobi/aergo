@@ -360,7 +360,7 @@ func (p2ps *P2P) ReceiveResp(context actor.Context) {
 			return
 		}
 		penalty = audit.GetPenaltyScore(msg.Err)
-		peer.AddPenalty(penalty)
+		peer.AddPenalty(penalty, "add block failed: "+msg.Err.Error())
 	// do nothing for now. just for prevent deadletter
 	case *message.MemPoolPutRsp:
 		p2ps.Logger.Debug().Err(msg.Err).Msg("got put tx failed ")
@@ -370,6 +370,6 @@ func (p2ps *P2P) ReceiveResp(context actor.Context) {
 			return
 		}
 		penalty = audit.GetPenaltyScore(msg.Err)
-		peer.AddPenalty(penalty)
+		peer.AddPenalty(penalty, "add tx failed: "+msg.Err.Error())
 	}
 }

@@ -240,13 +240,13 @@ func (mr *MockRemotePeerMockRecorder) UpdateLastNotice(blkHash, blkNumber interf
 }
 
 // AddPenalty mocks base method
-func (m *MockRemotePeer) AddPenalty(penalty audit.Penalty) {
-	m.ctrl.Call(m, "AddPenalty", penalty)
+func (m *MockRemotePeer) AddPenalty(penalty audit.Penalty, why string) {
+	m.ctrl.Call(m, "AddPenalty", penalty, why)
 }
 
 // AddPenalty indicates an expected call of AddPenalty
-func (mr *MockRemotePeerMockRecorder) AddPenalty(penalty interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddPenalty", reflect.TypeOf((*MockRemotePeer)(nil).AddPenalty), penalty)
+func (mr *MockRemotePeerMockRecorder) AddPenalty(penalty, why interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddPenalty", reflect.TypeOf((*MockRemotePeer)(nil).AddPenalty), penalty, why)
 }
 
 // MF mocks base method

@@ -8,6 +8,7 @@ package audit
 import (
 	"fmt"
 	"reflect"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -81,7 +82,11 @@ func Test_blacklistManagerImpl_AddBanScore(t *testing.T) {
 }
 
 func Test_blacklistManagerImpl_IsBanned(t *testing.T) {
-	t.SkipNow()
+	addr1 := "123.45.67.89"
+	id1, _ := peer.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
+	addrother := "8.8.8.8"
+	idother, _ := peer.IDB58Decode("16Uiu2HAmU8Wc925gZ5QokM4sGDKjysdPwRCQFoYobvoVnyutccCD")
+
 	type args struct {
 		addr string
 		pid  peer.ID
@@ -91,49 +96,19 @@ func Test_blacklistManagerImpl_IsBanned(t *testing.T) {
 		args   args
 		want   bool
 	}{
-		{"TNotFound",args{},false},
-		{"TFoundAddr",args{},true},
-		{"TFoundId",args{},true},
-		{"TFoundBoth",args{},true},
-		// TODO: Add test cases.
+		{"TNotFound",args{addrother, idother},false},
+		{"TFoundAddr",args{addr1, idother},true},
+		{"TFoundId",args{addrother, id1},true},
+		{"TFoundBoth",args{addr1, id1},true},
+	}
+	b := NewBlacklistManager()
+	for i:=0 ; i < 10 ; i++ {
+		b.AddBanScore(addr1, id1, "test "+strconv.Itoa(i))
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			b := NewBlacklistManager()
-
-			if got := b.IsBanned(tt.args.addr, tt.args.pid); got != tt.want {
+			if got, _ := b.IsBanned(tt.args.addr, tt.args.pid); got != tt.want {
 				t.Errorf("blacklistManagerImpl.IsBanned() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_blacklistManagerImpl_IsBannedIP(t *testing.T) {
-	type fields struct {
-		addrMap map[string]*addrBanStatusImpl
-		ipMap   map[peer.ID]*idBanStatusImpl
-		mutex   sync.Mutex
-	}
-	type args struct {
-		addr string
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			b := &blacklistManagerImpl{
-				addrMap: tt.fields.addrMap,
-				idMap:   tt.fields.ipMap,
-				mutex:   tt.fields.mutex,
-			}
-			if got := b.IsBannedIP(tt.args.addr); got != tt.want {
-				t.Errorf("blacklistManagerImpl.IsBannedIP() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -163,7 +138,7 @@ func Test_blacklistManagerImpl_IsBannedAddr(t *testing.T) {
 				idMap:   tt.fields.ipMap,
 				mutex:   tt.fields.mutex,
 			}
-			if got := b.IsBannedAddr(tt.args.pid); got != tt.want {
+			if got, _ := b.IsBannedAddr(tt.args.pid); got != tt.want {
 				t.Errorf("blacklistManagerImpl.IsBannedAddr() = %v, want %v", got, tt.want)
 			}
 		})

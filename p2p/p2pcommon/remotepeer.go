@@ -44,7 +44,7 @@ type RemotePeer interface {
 	// updateLastNotice change estimate of the last status of remote peer
 	UpdateLastNotice(blkHash []byte, blkNumber uint64)
 
-	AddPenalty(penalty audit.Penalty)
+	AddPenalty(penalty audit.Penalty, why string)
 
 	// TODO
 	MF() MoFactory

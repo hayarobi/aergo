@@ -13,6 +13,7 @@ import (
 )
 
 var NotFoundError = errors.New("ban status not found")
+var UndefinedTime = time.Unix(0,0)
 
 type blacklistManagerImpl struct {
     addrMap map[string]*addrBanStatusImpl
@@ -29,17 +30,19 @@ func NewBlacklistManager() *blacklistManagerImpl {
 }
 
 func (bm *blacklistManagerImpl) AddBanScore(addr string, pid peer.ID, why string) {
-	event := &banEvent{when:time.Now(), why:why}
+	// TODO it has all same valid. make it more robust later
+	now := time.Now()
+	event := &banEvent{when:now, why:why}
 	bm.mutex.Lock()
 	defer bm.mutex.Unlock()
 
 	if len(addr) > 0 {
-		ban, found := bm.addrMap[addr]
+		addrBan, found := bm.addrMap[addr]
 		if !found {
-			ban = newAddrBanStatusImpl()
-			bm.addrMap[addr] = ban
+			addrBan = newAddrBanStatusImpl()
+			bm.addrMap[addr] = addrBan
 		}
-		ban.addEvent(event)
+		addrBan.addEvent(event)
 	}
 	if len(pid) > 0 {
 		idban, found := bm.idMap[pid]
@@ -51,16 +54,31 @@ func (bm *blacklistManagerImpl) AddBanScore(addr string, pid peer.ID, why string
 	}
 }
 
-func (bm *blacklistManagerImpl) IsBanned(addr string, pid peer.ID) bool {
-	panic("implement me")
+func (bm *blacklistManagerImpl) IsBanned(addr string, pid peer.ID) (bool, time.Time) {
+	if banned, until := bm.IsBannedAddr(addr); banned {
+		return banned, until
+	}
+	return bm.IsBannedPeerID(pid)
 }
 
-func (bm *blacklistManagerImpl) IsBannedIP(addr string) bool {
-	panic("implement me")
+func (bm *blacklistManagerImpl) IsBannedPeerID(peerID peer.ID) (bool, time.Time) {
+	if len(peerID) > 0 {
+		idban, found := bm.idMap[peerID]
+		if found && time.Now().Before(idban.banUntil) {
+			return true, idban.banUntil
+		}
+	}
+	return false, UndefinedTime
 }
 
-func (bm *blacklistManagerImpl) IsBannedAddr(pid string) bool {
-	panic("implement me")
+func (bm *blacklistManagerImpl) IsBannedAddr(addr string) (bool, time.Time) {
+	if len(addr) > 0 {
+		addrBan, found := bm.addrMap[addr]
+		if found && time.Now().Before(addrBan.banUntil) {
+			return true, addrBan.banUntil
+		}
+	}
+	return false, UndefinedTime
 }
 
 func (bm *blacklistManagerImpl) GetStatusByID(peerID peer.ID) (BanStatus, error) {

@@ -8,6 +8,7 @@ package p2p
 import (
 	"bytes"
 	"encoding/binary"
+	"github.com/aergoio/aergo/p2p/audit"
 	"testing"
 	"time"
 
@@ -416,6 +417,8 @@ func TestRemotePeerImpl_GetReceiver(t *testing.T) {
 			mockSigner := new(p2pmock.MockMsgSigner)
 			mockMF := new(p2pmock.MockMoFactory)
 			p := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, mockMF, mockSigner, nil, nil)
+			// set dummy auditor
+			p.audit = audit.NewPeerAuditor(100000000.0, p)
 			for _, add := range test.toAdd {
 				p.requests[add] = &requestInfo{receiver: recvList[add]}
 			}
