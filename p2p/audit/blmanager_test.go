@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
-	"sync"
 	"testing"
 	"time"
 
@@ -25,7 +24,7 @@ func TestNewBlacklistManager(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := NewBlacklistManager()
+			got := NewBlacklistManager(nil, "")
 			if got.addrMap == nil {
 				t.Errorf("NewBlacklistManager() fields not initialized %v","addrMap")
 			}
@@ -59,7 +58,7 @@ func Test_blacklistManagerImpl_AddBanScore(t *testing.T) {
 		{"TSameId",args{addrother, id1, "id"},2,2},
 		{"TBoth",args{addr1, id1, "both"},3,3},
 	}
-	bm := NewBlacklistManager()
+	bm := NewBlacklistManager(nil, "")
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bm.AddBanScore(tt.args.addr, tt.args.pid, tt.args.why)
@@ -101,7 +100,7 @@ func Test_blacklistManagerImpl_IsBanned(t *testing.T) {
 		{"TFoundId",args{addrother, id1},true},
 		{"TFoundBoth",args{addr1, id1},true},
 	}
-	b := NewBlacklistManager()
+	b := NewBlacklistManager(nil, "")
 	for i:=0 ; i < 10 ; i++ {
 		b.AddBanScore(addr1, id1, "test "+strconv.Itoa(i))
 	}
@@ -118,7 +117,6 @@ func Test_blacklistManagerImpl_IsBannedAddr(t *testing.T) {
 	type fields struct {
 		addrMap map[string]*addrBanStatusImpl
 		ipMap   map[peer.ID]*idBanStatusImpl
-		mutex   sync.Mutex
 	}
 	type args struct {
 		pid string
@@ -136,7 +134,6 @@ func Test_blacklistManagerImpl_IsBannedAddr(t *testing.T) {
 			b := &blacklistManagerImpl{
 				addrMap: tt.fields.addrMap,
 				idMap:   tt.fields.ipMap,
-				mutex:   tt.fields.mutex,
 			}
 			if got, _ := b.IsBannedAddr(tt.args.pid); got != tt.want {
 				t.Errorf("blacklistManagerImpl.IsBannedAddr() = %v, want %v", got, tt.want)
@@ -149,7 +146,6 @@ func Test_blacklistManagerImpl_GetStatus(t *testing.T) {
 	type fields struct {
 		addrMap map[string]*addrBanStatusImpl
 		ipMap   map[peer.ID]*idBanStatusImpl
-		mutex   sync.Mutex
 	}
 	type args struct {
 		addr string
@@ -169,7 +165,6 @@ func Test_blacklistManagerImpl_GetStatus(t *testing.T) {
 			b := &blacklistManagerImpl{
 				addrMap: tt.fields.addrMap,
 				idMap:   tt.fields.ipMap,
-				mutex:   tt.fields.mutex,
 			}
 			got, err := b.GetStatusByAddr(tt.args.addr)
 			if (err != nil) != tt.wantErr {
@@ -196,13 +191,12 @@ func Test_blacklistManagerImpl_NewPeerAuditor(t *testing.T) {
 		want   PeerAuditor
 	}{
 		{"T1",args{}, nil},
-		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dl := &dummyListener{}
 
-			bm := NewBlacklistManager()
+			bm := NewBlacklistManager(nil, "")
 			got := bm.NewPeerAuditor(addr1, id1, dl)
 			if  got.PeerID() != id1  {
 				t.Errorf("blacklistManagerImpl.NewPeerAuditor() = %v, want %v",  got.PeerID() , id1)

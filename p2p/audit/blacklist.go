@@ -11,8 +11,10 @@ import (
 )
 
 type BlacklistManager interface {
-	NewPeerAuditor(address string, peerID peer.ID, exceedlistener ExceedListener) PeerAuditor
+	Start()
+	Stop()
 
+	NewPeerAuditor(address string, peerID peer.ID, exceedlistener ExceedListener) PeerAuditor
 	//AddBanScore(addr string, pid peer.ID, why string)
 
 	IsBanned(addr string, pid peer.ID) (bool, time.Time)
@@ -30,9 +32,11 @@ type BanStatus interface {
 	// ID is ip address or peer id
 	ID() string
 
-	// ValidUntil show when this ban items is expired.
-	ValidUntil() time.Time
+	// BanUntil show when this ban items is expired.
+	BanUntil() time.Time
+	Banned(refTime time.Time) bool
 	Events() []BanEvent
+	PruneOldEvents(pruneTime time.Time) int
 }
 
 type BanEvent interface {

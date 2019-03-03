@@ -226,3 +226,39 @@ func TestGenerateKeyFile(t *testing.T) {
 		})
 	}
 }
+
+func TestGetIPFromMultiAddr(t *testing.T) {
+	ip4 := net.ParseIP("211.34.56.78")
+	ip6 := net.ParseIP("fe80::dcbf:beff:fe87:e30a")
+	ip6_2 := net.ParseIP("::ffff:192.0.1.2")
+	if ip4 == nil || ip6 == nil || ip6_2 == nil {
+
+	}
+	tests := []struct {
+		name string
+		addrStr string
+
+		want net.IP
+	}{
+		{"TIP4","/ip4/211.34.56.78",ip4},
+		{"TIP6","/ip6/fe80::dcbf:beff:fe87:e30a",ip6},
+		{"TIP4withPort","/ip4/211.34.56.78/tcp/1234",ip4},
+		{"TIP6withPort","/ip6/fe80::dcbf:beff:fe87:e30a/tcp/1234/p2p/16Uiu2HAmHuBgtnisgPLbujFvxPNZw3Qvpk3VLUwTzh5C67LAZSFh",ip6},
+		{"TIP6_2","/ip6/::ffff:192.0.1.2/tcp/1234",ip6_2},
+		{"TIP4overIP6","/ip6/211.34.56.78/tcp/1234",ip4},
+		{"TNoIP","/https/tcp/1234",nil},
+		{"TNoIP2","/unix/abcde/tcp/1234",nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			addr, err  := multiaddr.NewMultiaddr(tt.addrStr)
+			if err != nil {
+				t.Errorf("GetIPFromMultiAddr() test is wrong (addr %v, err %v)", addr, err.Error())
+				t.FailNow()
+			}
+			if got := GetIPFromMultiAddr(addr); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("GetIPFromMultiAddr() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

@@ -140,7 +140,7 @@ func (p2ps *P2P) initP2P(cfg *config.Config, chainsvc *chain.ChainService) {
 	p2ps.chainID = chainID
 
 	useRaft := genesis.ConsensusType() == consensus.ConsensusName[consensus.ConsensusRAFT]
-	blacklistMan := audit.NewBlacklistManager()
+	blacklistMan := audit.NewBlacklistManager(p2ps.Logger, cfg.AuthDir)
 
 	netTransport := transport.NewNetworkTransport(cfg.P2P, p2ps.Logger)
 	signer := newDefaultMsgSigner(p2pkey.NodePrivKey(), p2pkey.NodePubKey(), p2pkey.NodeID())

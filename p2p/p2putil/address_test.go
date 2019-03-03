@@ -68,7 +68,7 @@ func TestResolveHostDomainLocal(t *testing.T) {
 	}
 }
 
-func TestParseAddress(t *testing.T) {
+func TestCheckAddress(t *testing.T) {
 	tests := []struct {
 		name string
 
@@ -120,7 +120,6 @@ func TestCheckAddressType(t *testing.T) {
 		{"TIP4withPort", "211.34.56.78:1234", AddressTypeError},
 		{"TIP6withPort", "[fe80::dcbf:beff:fe87:e30a]:1234", AddressTypeError},
 		{"TFQDNwithPort", "iparkmac.aergo.io:1234", AddressTypeError},
-		// TODO: test cases
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
