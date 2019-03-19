@@ -25,6 +25,8 @@ type BlacklistManager interface {
 	GetStatusByID(peerID peer.ID) (BanStatus, error)
 	// GetStatusByID returns ban status of ip address. it returns error when the peer is not registered to ban
 	GetStatusByAddr(addr string) (BanStatus, error)
+
+	Summary() (map[string] interface{})
 }
 
 // BanStatus keep kickout logs and decide how long the ban duration is

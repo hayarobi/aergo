@@ -292,6 +292,7 @@ func (p *remotePeerImpl) handleMsg(msg p2pcommon.Message) error {
 	payload, err := handler.ParsePayload(msg.Payload())
 	if err != nil {
 		p.logger.Warn().Err(err).Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogMsgID, msg.ID().String()).Str(p2putil.LogProtoID, subProto.String()).Msg("invalid message data")
+		p.audit.AddPenalty(audit.PenaltyBig)
 		return fmt.Errorf("invalid message data")
 	}
 	//err = p.signer.verifyMsg(msg, p.meta.ID)

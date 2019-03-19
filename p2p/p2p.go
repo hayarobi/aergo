@@ -102,6 +102,7 @@ func (p2ps *P2P) BeforeStop() {
 func (p2ps *P2P) Statistics() *map[string]interface{} {
 	stmap := make(map[string]interface{})
 	stmap["netstat"] = p2ps.mm.Summary()
+	stmap["blacklist"] = p2ps.bm.Summary()
 	return &stmap
 }
 

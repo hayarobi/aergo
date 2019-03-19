@@ -7,6 +7,7 @@ package audit
 
 import (
 	"errors"
+	"fmt"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/libp2p/go-libp2p-peer"
 	"path/filepath"
@@ -178,6 +179,25 @@ func (bm *blacklistManagerImpl) pruneOldEvents() {
 			bs.PruneOldEvents(pruneDelay)
 		}
 	}
+}
+
+
+func (bm *blacklistManagerImpl) Summary() map[string] interface{} {
+	// There can be a liitle error
+	sum := make(map[string] interface{})
+	idBan := make(map[string] interface{})
+	addrBan := make(map[string] interface{})
+	bm.rwLock.RLock()
+	defer bm.rwLock.RUnlock()
+	for _, bs := range bm.idMap {
+		idBan[bs.ID()] = fmt.Sprintf("score:%4d, till %v ",bs.banScore,bs.banUntil)
+	}
+	for _, bs := range bm.addrMap {
+		addrBan[bs.ID()] = fmt.Sprintf("score:%4d, till %v ",bs.banScore,bs.banUntil)
+	}
+	sum["bannedID"] = idBan
+	sum["bannedAddr"] = addrBan
+	return sum
 }
 
 type listenWrapper struct {
