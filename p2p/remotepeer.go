@@ -292,7 +292,7 @@ func (p *remotePeerImpl) handleMsg(msg p2pcommon.Message) error {
 	payload, err := handler.ParsePayload(msg.Payload())
 	if err != nil {
 		p.logger.Warn().Err(err).Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogMsgID, msg.ID().String()).Str(p2putil.LogProtoID, subProto.String()).Msg("invalid message data")
-		p.audit.AddPenalty(audit.PenaltyBig)
+		p.audit.AddPenalty(p2pcommon.PenaltyBig)
 		return fmt.Errorf("invalid message data")
 	}
 	//err = p.signer.verifyMsg(msg, p.meta.ID)
@@ -315,9 +315,9 @@ func (p *remotePeerImpl) handleMsg(msg p2pcommon.Message) error {
 func (p *remotePeerImpl) checkAudit(protocol p2pcommon.SubProtocol) bool {
 	switch protocol {
 	case subproto.GetBlockHeadersRequest, subproto.GetAncestorRequest, subproto.GetBlocksRequest, subproto.GetHashByNoRequest, subproto.GetHashesRequest :
-		p.audit.AddPenalty(audit.PenaltyTiny)
+		p.audit.AddPenalty(p2pcommon.PenaltyTiny)
 	case subproto.GetTXsRequest :
-		p.audit.AddPenalty(audit.PenaltyTiny)
+		p.audit.AddPenalty(p2pcommon.PenaltyTiny)
 	case subproto.PingRequest, subproto.AddressesRequest :
 		// TODO ping or address is add only if excessively frequent requests
 	default:
@@ -390,7 +390,7 @@ func (p *remotePeerImpl) ConsumeRequest(originalID p2pcommon.MsgID) {
 	if found {
 		delete(p.requests, originalID)
 	} else {
-		p.AddPenalty(audit.PenaltyBig, "uknown response")
+		p.AddPenalty(p2pcommon.PenaltyBig, "uknown response")
 	}
 }
 
@@ -534,7 +534,7 @@ func (p *remotePeerImpl) sendGoAway(msg string) {
 	// TODO: send goaway message and close connection
 }
 
-func (p *remotePeerImpl) AddPenalty(penalty audit.Penalty, why string) {
+func (p *remotePeerImpl) AddPenalty(penalty p2pcommon.Penalty, why string) {
 	p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Str("penalty",penalty.String()).Str("why",why).Msg("add penalty")
 	p.audit.AddPenalty(penalty)
 }

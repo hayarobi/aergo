@@ -230,6 +230,9 @@ func (dpm *basePeerManager) tryAddPeer(outbound bool, meta p2pcommon.PeerMeta, s
 	// insert Handlers
 	dpm.pm.handlerFactory.InsertHandlers(newPeer)
 
+	// initialize peer autit
+	newPeer.audit = dpm.pm.bm.NewPeerAuditor(receivedMeta.IPAddress, peerID, newPeer)
+
 	dpm.pm.peerHandshaked <- newPeer
 	return receivedMeta, true
 }

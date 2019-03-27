@@ -16,6 +16,7 @@ type Config struct {
 	BaseConfig `mapstructure:",squash"`
 	RPC        *RPCConfig        `mapstructure:"rpc"`
 	P2P        *P2PConfig        `mapstructure:"p2p"`
+	Audit      *AuditConfig      `mapstructure:"audit"`
 	Polaris    *PolarisConfig    `mapstructure:"polaris"`
 	Blockchain *BlockchainConfig `mapstructure:"blockchain"`
 	Mempool    *MempoolConfig    `mapstructure:"mempool"`
@@ -71,6 +72,12 @@ type P2PConfig struct {
 
 	LogFullPeerID bool `mapstructure:"logfullpeerid" description:"Whether to use full legnth peerID or short form"`
 	// NPPrivateChain and NPMainNet are not set from configfile, it must be got from genesis block. TODO this properties should not be in config
+}
+
+// AuditConfig defines configuration for auditing
+type AuditConfig struct {
+	EnableAudit  bool `mapstructure:"enableaudit" description:"use audit or not"`
+	RuntimeAudit bool `mapstructure:"runtimeaudit" description:"use runtime audit to kickout during runtime"`
 }
 
 // PolarisConfig defines configuration for polaris server and client (i.e. polarisConnect)
@@ -187,6 +194,11 @@ npusepolaris= {{.P2P.NPUsePolaris}}
 npaddpolarises = [{{range .P2P.NPAddPolarises}}
 "{{.}}", {{end}}
 ]
+
+[audit]
+enableaudit = {{.Audit.EnableAudit}}
+runtimeaudit = "{{.Audit.RuntimeAudit}}"
+
 
 [polaris]
 allowprivate = {{.Polaris.AllowPrivate}}

@@ -338,10 +338,6 @@ func (pm *peerManager) tryRegister(peer p2pcommon.RemotePeer) bool {
 	pm.logger.Info().Bool("outbound", receivedMeta.Outbound).Str(p2putil.LogPeerName, peer.Name()).Str("addr", net.ParseIP(receivedMeta.IPAddress).String()+":"+strconv.Itoa(int(receivedMeta.Port))).Msg("peer is added to peerService")
 
 
-	// TODO add triggering sync.
-	// TODO initialize peer autit
-	// peer.audit = pm.bm.NewPeerAuditor(rMeta.IPAddress, peerID, rPeer)
-
 	return true
 }
 

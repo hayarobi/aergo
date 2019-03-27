@@ -7,6 +7,9 @@ package audit
 
 import (
 	"fmt"
+	"github.com/aergoio/aergo/config"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"reflect"
 	"strconv"
 	"testing"
@@ -16,6 +19,8 @@ import (
 )
 
 func TestNewBlacklistManager(t *testing.T) {
+	conf := config.NewServerContext("","").GetDefaultAuditConfig()
+
 	tests := []struct {
 		name string
 	}{
@@ -24,7 +29,7 @@ func TestNewBlacklistManager(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := NewBlacklistManager(nil, "")
+			got := NewBlacklistManager(conf, "", nil).(*blacklistManagerImpl)
 			if got.addrMap == nil {
 				t.Errorf("NewBlacklistManager() fields not initialized %v","addrMap")
 			}
@@ -36,6 +41,8 @@ func TestNewBlacklistManager(t *testing.T) {
 }
 
 func Test_blacklistManagerImpl_AddBanScore(t *testing.T) {
+	conf := config.NewServerContext("","").GetDefaultAuditConfig()
+
 	addr1 := "123.45.67.89"
 	id1, _ := peer.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
 	addrother := "8.8.8.8"
@@ -58,7 +65,7 @@ func Test_blacklistManagerImpl_AddBanScore(t *testing.T) {
 		{"TSameId",args{addrother, id1, "id"},2,2},
 		{"TBoth",args{addr1, id1, "both"},3,3},
 	}
-	bm := NewBlacklistManager(nil, "")
+	bm := NewBlacklistManager(conf, "", nil).(*blacklistManagerImpl)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bm.AddBanScore(tt.args.addr, tt.args.pid, tt.args.why)
@@ -81,6 +88,7 @@ func Test_blacklistManagerImpl_AddBanScore(t *testing.T) {
 }
 
 func Test_blacklistManagerImpl_IsBanned(t *testing.T) {
+	conf := config.NewServerContext("","").GetDefaultAuditConfig()
 	addr1 := "123.45.67.89"
 	id1, _ := peer.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
 	addrother := "8.8.8.8"
@@ -100,7 +108,7 @@ func Test_blacklistManagerImpl_IsBanned(t *testing.T) {
 		{"TFoundId",args{addrother, id1},true},
 		{"TFoundBoth",args{addr1, id1},true},
 	}
-	b := NewBlacklistManager(nil, "")
+	b := NewBlacklistManager(conf, "", nil).(*blacklistManagerImpl)
 	for i:=0 ; i < 10 ; i++ {
 		b.AddBanScore(addr1, id1, "test "+strconv.Itoa(i))
 	}
@@ -184,19 +192,25 @@ func Test_blacklistManagerImpl_NewPeerAuditor(t *testing.T) {
 	addr1 := "123.45.67.89"
 	id1, _ := peer.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
 	type args struct {
+		runtimeAudit bool
 	}
 	tests := []struct {
 		name   string
 		args   args
-		want   PeerAuditor
+
+		wantType string
+		banned   bool
+
 	}{
-		{"T1",args{}, nil},
+		{"TRuntimeAuditor",args{true},  "DefaultAuditor", true},
+		{"TNoAuditor",args{false},  "dummyAuditor", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dl := &dummyListener{}
+			conf := &config.AuditConfig{EnableAudit:true, RuntimeAudit:tt.args.runtimeAudit}
 
-			bm := NewBlacklistManager(nil, "")
+			bm := NewBlacklistManager(conf, "", nil)
 			got := bm.NewPeerAuditor(addr1, id1, dl)
 			if  got.PeerID() != id1  {
 				t.Errorf("blacklistManagerImpl.NewPeerAuditor() = %v, want %v",  got.PeerID() , id1)
@@ -205,19 +219,27 @@ func Test_blacklistManagerImpl_NewPeerAuditor(t *testing.T) {
 				t.Errorf("blacklistManagerImpl.NewPeerAuditor() = %v, want %v",  got.IPAddress() , addr1)
 			}
 
-			got.AddPenalty(PenaltySevere)
+			got.AddPenalty(p2pcommon.PenaltySevere)
 			time.Sleep(time.Millisecond<<4)
 
-			if !dl.called {
-				t.Errorf("exceed event is expected, but was not.", )
+			if stat, _ := bm.GetStatusByID(id1); (stat != nil) != tt.banned {
+				t.Errorf("expect id %v is banned, but was not.", p2putil.ShortForm(id1))
 			}
-			stat, _ := bm.GetStatusByID(id1)
-			if len(stat.Events()) == 0 {
-				t.Errorf("ban stat was not increased for id %v", id1 )
+			if stat, _ := bm.GetStatusByAddr(addr1); (stat != nil) != tt.banned {
+				t.Errorf("expect addr %v is expected, but was not.", addr1)
 			}
-			stataddr, _ := bm.GetStatusByAddr(addr1)
-			if len(stataddr.Events()) == 0 {
-				t.Errorf("ban stat was not increased for addr %v", addr1 )
+			if tt.banned {
+				if !dl.called {
+					t.Errorf("exceed event is expected, but was not.", )
+				}
+				stat, _ := bm.GetStatusByID(id1)
+				if len(stat.Events()) == 0 {
+					t.Errorf("ban stat was not increased for id %v", id1 )
+				}
+				stataddr, _ := bm.GetStatusByAddr(addr1)
+				if len(stataddr.Events()) == 0 {
+					t.Errorf("ban stat was not increased for addr %v", addr1 )
+				}
 			}
 		})
 	}

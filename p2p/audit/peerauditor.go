@@ -6,6 +6,7 @@
 package audit
 
 import (
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/libp2p/go-libp2p-peer"
 	"sync"
 	"time"
@@ -15,10 +16,14 @@ type PeerAuditor interface {
 	PeerID() peer.ID
 	IPAddress() string
 
-	AddPenalty(penalty Penalty) bool
-	AddScore(category PenaltyCategory, score float64) bool
+	// AddPenalty add score by Penalty struct and return the total score is lower than threshold; i.e. this peer is fine.
+	AddPenalty(penalty p2pcommon.Penalty) bool
+	// AddScore add penalty score and returns the total score is lower than threshold; i.e. this peer is fine.
+	AddScore(category p2pcommon.PenaltyCategory, score float64) bool
 	Threshold() float64
-	CurrentScore(category PenaltyCategory) float64
+	// CurrentScore show score of a penalty category
+	CurrentScore(category p2pcommon.PenaltyCategory) float64
+	// ScoreSum show mixed sum of total penalty score
 	ScoreSum() float64
 }
 
@@ -52,11 +57,11 @@ func (a *DefaultAuditor) IPAddress() string {
 	return a.ipAddress
 }
 
-func (a *DefaultAuditor) AddPenalty(penalty Penalty) bool {
-	return a.AddScore(penalty.category, float64(penalty.score))
+func (a *DefaultAuditor) AddPenalty(penalty p2pcommon.Penalty) bool {
+	return a.AddScore(penalty.Category, float64(penalty.Score))
 }
 
-func (a *DefaultAuditor) AddScore(category PenaltyCategory, score float64) bool {
+func (a *DefaultAuditor) AddScore(category p2pcommon.PenaltyCategory, score float64) bool {
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
 	if a.exceed {
@@ -64,9 +69,9 @@ func (a *DefaultAuditor) AddScore(category PenaltyCategory, score float64) bool 
 	}
 	now := time.Now().Unix()
 	switch category {
-	case ShortTerm :
+	case p2pcommon.ShortTerm :
 		a.shortScore.AddValue(now, score)
-	case LongTerm :
+	case p2pcommon.LongTerm :
 		a.longScore.AddValue(now, score)
 	default:
 		a.permScore += float64(score)
@@ -86,14 +91,14 @@ func (a *DefaultAuditor) Threshold() float64 {
 	return a.threshold
 }
 
-func (a *DefaultAuditor) CurrentScore(category PenaltyCategory) float64 {
+func (a *DefaultAuditor) CurrentScore(category p2pcommon.PenaltyCategory) float64 {
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
 	now := time.Now().Unix()
 	switch category {
-	case ShortTerm :
+	case p2pcommon.ShortTerm :
 		return a.shortScore.Value(now)
-	case LongTerm :
+	case p2pcommon.LongTerm :
 		return a.longScore.Value(now)
 	default:
 		return a.permScore

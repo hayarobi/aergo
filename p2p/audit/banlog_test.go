@@ -2,8 +2,9 @@ package audit
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
-	"github.com/aergoio/aergo/cmd/aergocli/util/encoding/json"
+	"github.com/aergoio/aergo/config"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -13,6 +14,7 @@ import (
 )
 
 func Test_blacklistManagerImpl_saveBlacklistFile(t *testing.T) {
+	conf := config.NewServerContext("","").GetDefaultAuditConfig()
 	const (
 		addr1 = "192.168.0.12"
 		addr2 = "172.21.0.3"
@@ -54,7 +56,7 @@ func Test_blacklistManagerImpl_saveBlacklistFile(t *testing.T) {
 		{addr2,id2, &banEvent{time.Now().Add(- time.Hour * 2).Round(0),"004"}},
 		{addr3,id1, &banEvent{time.Now().Add(- time.Hour * 1).Round(0),"005"}},
 	}
-	bm := NewBlacklistManager(nil, "")
+	bm := NewBlacklistManager(conf, "", nil).(*blacklistManagerImpl)
 	for _, in := range ins {
 		bm.addAddrBanScore(in.addr, in.ev)
 		bm.addIDBanScore(in.id, in.ev)
@@ -74,7 +76,7 @@ func Test_blacklistManagerImpl_saveBlacklistFile(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bm.saveBlacklistFile(tt.args.filePath)
 
-			other := NewBlacklistManager(nil, "")
+			other := NewBlacklistManager(conf, "", nil).(*blacklistManagerImpl)
 
 			other.loadBlacklistFile(tt.args.filePath)
 

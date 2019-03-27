@@ -6,6 +6,7 @@
 package audit
 
 import (
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -17,7 +18,7 @@ func TestDefaultAuditor_AddScore(t *testing.T) {
 		threshold      float64
 	}
 	type args struct {
-		category PenaltyCategory
+		category p2pcommon.PenaltyCategory
 		score    float64
 		count    int
 		interval time.Duration
@@ -29,8 +30,8 @@ func TestDefaultAuditor_AddScore(t *testing.T) {
 
 		wantListenerCalled bool
 	}{
-		{"TSmallPerm",fields{10000}, args{Permanent,1000,10, time.Millisecond}, false},
-		{"TExPerm",fields{10000}, args{Permanent,1000,11, time.Millisecond}, true},
+		{"TSmallPerm",fields{10000}, args{p2pcommon.Permanent,1000,10, time.Millisecond}, false},
+		{"TExPerm",fields{10000}, args{p2pcommon.Permanent,1000,11, time.Millisecond}, true},
 		//{"TSmallLong",fields{10000}, args{LongTerm,910,11, time.Second>>2}, false},
 		//{"TExLong",fields{10000}, args{LongTerm,911,11, time.Second>>2}, true},
 		//{"TSmallShort",fields{10000}, args{ShortTerm,980,11, time.Second>>2}, false},

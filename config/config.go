@@ -41,6 +41,7 @@ func (ctx *ServerContext) GetDefaultConfig() interface{} {
 		BaseConfig: ctx.GetDefaultBaseConfig(),
 		RPC:        ctx.GetDefaultRPCConfig(),
 		P2P:        ctx.GetDefaultP2PConfig(),
+		Audit:      ctx.GetDefaultAuditConfig(),
 		Blockchain: ctx.GetDefaultBlockchainConfig(),
 		Mempool:    ctx.GetDefaultMempoolConfig(),
 		Consensus:  ctx.GetDefaultConsensusConfig(),
@@ -86,6 +87,13 @@ func (ctx *ServerContext) GetDefaultP2PConfig() *P2PConfig {
 		NPPeerPool:      100,
 		NPUsePolaris:    true,
 		NPExposeSelf:    true,
+	}
+}
+
+func (ctx *ServerContext) GetDefaultAuditConfig() *AuditConfig {
+	return &AuditConfig{
+		EnableAudit:  true,
+		RuntimeAudit: false,
 	}
 }
 

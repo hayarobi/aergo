@@ -7,6 +7,7 @@ package audit
 
 import (
 	"github.com/aergoio/aergo/message"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/types"
 	"reflect"
 	"testing"
@@ -21,13 +22,13 @@ func TestGetPenaltyScore(t *testing.T) {
 	tests := []struct {
 		name string
 		args args
-		want Penalty
+		want p2pcommon.Penalty
 	}{
-		{"TBlameSevere", args{message.NewBlamableError(message.Severe,"")}, PenaltySevere},
-		{"TBlameBig", args{message.NewBlamableError(message.Big,"")}, PenaltyBig},
-		{"TBlameNormal", args{message.NewBlamableError(message.Normal,"")}, PenaltyNormal},
-		{"TBlameTiny", args{message.NewBlamableError(message.Tiny,"")}, PenaltyTiny},
-		{"TNotBlame", args{types.ErrSignNotMatch}, PenaltyNone},
+		{"TBlameSevere", args{message.NewBlamableError(message.Severe,"")}, p2pcommon.PenaltySevere},
+		{"TBlameBig", args{message.NewBlamableError(message.Big,"")}, p2pcommon.PenaltyBig},
+		{"TBlameNormal", args{message.NewBlamableError(message.Normal,"")}, p2pcommon.PenaltyNormal},
+		{"TBlameTiny", args{message.NewBlamableError(message.Tiny,"")}, p2pcommon.PenaltyTiny},
+		{"TNotBlame", args{types.ErrSignNotMatch}, p2pcommon.PenaltyNone},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/config"
 	"github.com/libp2p/go-libp2p-peer"
 	"path/filepath"
 	"sync"
@@ -28,8 +29,7 @@ const (
 	tempFileSurfix = ".tmp"
 
 	defaultPruneInteral = time.Hour
-	defaultPruneTTL = time.Hour * 24 * 730
-
+	defaultPruneTTL     = time.Hour * 24 * 730
 )
 
 type blacklistManagerImpl struct {
@@ -42,10 +42,19 @@ type blacklistManagerImpl struct {
 
 	authDir string
 
+	factory auditorFactory
 	stopScheduler chan interface{}
 }
 
-func NewBlacklistManager(logger *log.Logger, authDir string) *blacklistManagerImpl {
+type auditorFactory interface {
+	caretePeerAuditor(peerID peer.ID, address string, exceedlistener ExceedListener) PeerAuditor
+}
+
+
+func NewBlacklistManager(conf *config.AuditConfig, authDir string, logger *log.Logger) BlacklistManager {
+	if !conf.EnableAudit {
+		return newDummyBlacklistManager()
+	}
 	bm := &blacklistManagerImpl{
 		logger:  logger,
 		addrMap: make(map[string]*addrBanStatusImpl),
@@ -54,7 +63,13 @@ func NewBlacklistManager(logger *log.Logger, authDir string) *blacklistManagerIm
 		authDir:       authDir,
 		stopScheduler: make(chan interface{}),
 	}
-
+	var factory auditorFactory
+	if conf.RuntimeAudit {
+		factory = &runtimeAuditorFactory{bm}
+	} else {
+		factory = &dummyAuditorFactory{}
+	}
+	bm.factory = factory
 	return bm
 }
 
@@ -145,9 +160,7 @@ func (bm *blacklistManagerImpl) GetStatusByAddr(addr string) (BanStatus, error) 
 }
 
 func (bm *blacklistManagerImpl) NewPeerAuditor(address string, peerID peer.ID, exceedlistener ExceedListener) PeerAuditor {
-	pa := NewPeerAuditor(DefaultPeerExceedThreshold, newListenWrapper(bm, exceedlistener))
-	pa.peerID = peerID
-	pa.ipAddress = address
+	pa := bm.factory.caretePeerAuditor(peerID, address, exceedlistener)
 
 	return pa
 }
@@ -168,7 +181,7 @@ func (bm *blacklistManagerImpl) pruneOldEvents() {
 	bm.rwLock.Lock()
 	defer bm.rwLock.Unlock()
 	// pruning is not applied to banned peer
-	pruneDelay := time.Now().Add( defaultPruneTTL * -1)
+	pruneDelay := time.Now().Add(defaultPruneTTL * -1)
 	for _, bs := range bm.addrMap {
 		if !bs.Banned(pruneDelay) {
 			bs.PruneOldEvents(pruneDelay)
@@ -181,19 +194,18 @@ func (bm *blacklistManagerImpl) pruneOldEvents() {
 	}
 }
 
-
-func (bm *blacklistManagerImpl) Summary() map[string] interface{} {
+func (bm *blacklistManagerImpl) Summary() map[string]interface{} {
 	// There can be a liitle error
-	sum := make(map[string] interface{})
-	idBan := make(map[string] interface{})
-	addrBan := make(map[string] interface{})
+	sum := make(map[string]interface{})
+	idBan := make(map[string]interface{})
+	addrBan := make(map[string]interface{})
 	bm.rwLock.RLock()
 	defer bm.rwLock.RUnlock()
 	for _, bs := range bm.idMap {
-		idBan[bs.ID()] = fmt.Sprintf("score:%4d, till %v ",bs.banScore,bs.banUntil)
+		idBan[bs.ID()] = fmt.Sprintf("score:%4d, till %v ", bs.banScore, bs.banUntil)
 	}
 	for _, bs := range bm.addrMap {
-		addrBan[bs.ID()] = fmt.Sprintf("score:%4d, till %v ",bs.banScore,bs.banUntil)
+		addrBan[bs.ID()] = fmt.Sprintf("score:%4d, till %v ", bs.banScore, bs.banUntil)
 	}
 	sum["bannedID"] = idBan
 	sum["bannedAddr"] = addrBan
@@ -212,4 +224,23 @@ func newListenWrapper(bm *blacklistManagerImpl, exceedlistener ExceedListener) E
 func (lw *listenWrapper) OnExceed(auditor PeerAuditor, cause string) {
 	go lw.bm.AddBanScore(auditor.IPAddress(), auditor.PeerID(), cause)
 	lw.innerListener.OnExceed(auditor, cause)
+}
+
+type dummyAuditorFactory struct {
+
+}
+
+func (dummyAuditorFactory) caretePeerAuditor(peerID peer.ID, address string, exceedlistener ExceedListener) PeerAuditor {
+	return &dummyAuditor{peerID:peerID, ipAddress:address}
+}
+
+type runtimeAuditorFactory struct {
+	bm *blacklistManagerImpl
+}
+
+func (af *runtimeAuditorFactory) caretePeerAuditor(peerID peer.ID, address string, exceedlistener ExceedListener) PeerAuditor {
+	auditor :=  NewPeerAuditor(DefaultPeerExceedThreshold, newListenWrapper(af.bm, exceedlistener))
+	auditor.peerID = peerID
+	auditor.ipAddress = address
+	return auditor
 }

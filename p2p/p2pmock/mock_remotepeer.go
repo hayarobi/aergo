@@ -5,7 +5,6 @@
 package p2pmock
 
 import (
-	audit "github.com/aergoio/aergo/p2p/audit"
 	p2pcommon "github.com/aergoio/aergo/p2p/p2pcommon"
 	types "github.com/aergoio/aergo/types"
 	gomock "github.com/golang/mock/gomock"
@@ -240,7 +239,7 @@ func (mr *MockRemotePeerMockRecorder) UpdateLastNotice(blkHash, blkNumber interf
 }
 
 // AddPenalty mocks base method
-func (m *MockRemotePeer) AddPenalty(penalty audit.Penalty, why string) {
+func (m *MockRemotePeer) AddPenalty(penalty p2pcommon.Penalty, why string) {
 	m.ctrl.Call(m, "AddPenalty", penalty, why)
 }
 

@@ -33,6 +33,8 @@ type MsgOrder interface {
 	SendTo(p RemotePeer) error
 }
 
+// ResponseReceiver returns true when receiver handled it, or false if this receiver is not the expected handler.
+// NOTE: the return value is temporal works for old implementation and will be remove later.
 type MoFactory interface {
 	NewMsgRequestOrder(expecteResponse bool, protocolID SubProtocol, message MessageBody) MsgOrder
 	NewMsgBlockRequestOrder(respReceiver ResponseReceiver, protocolID SubProtocol, message MessageBody) MsgOrder
