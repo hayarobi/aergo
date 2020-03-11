@@ -73,6 +73,7 @@ func NewAergoRaftTransport(logger *log.Logger, nt p2pcommon.NetworkTransport, pm
 }
 
 func (t *AergoRaftTransport) Start() error {
+	t.nt.AddStreamHandler(p2pcommon.RaftSubAddr, t.OnRaft)
 	t.nt.AddStreamHandler(p2pcommon.RaftSnapSubAddr, t.OnRaftSnapshot)
 
 	// do nothing for now
@@ -235,6 +236,26 @@ func (t *AergoRaftTransport) Stop() {
 	defer t.mutex.Unlock()
 	// Lots of works will be done by p2p modules
 	t.nt.RemoveStreamHandler(p2pcommon.RaftSnapSubAddr)
+	t.nt.RemoveStreamHandler(p2pcommon.RaftSubAddr)
+}
+
+
+func (t *AergoRaftTransport) OnRaft(s network.Stream) {
+	hsresp := p2pcommon.HSHeadResp{Magic: p2pcommon.MAGICRaft}
+	peerID := s.Conn().RemotePeer()
+
+	// check validation
+	peer, found := t.pm.GetPeer(peerID)
+	if !found {
+		addr := s.Conn().RemoteMultiaddr()
+		t.logger.Info().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Str("multiaddr", addr.String()).Msg("raft stream from unknown node")
+		hsresp.RespCode = p2pcommon.HSCodeAuthFail
+		s.Write(hsresp.Marshal())
+		s.Close()
+		return
+	}
+
+	t.logger.Debug().Str(p2putil.LogPeerName, peerID.Pretty()).Msg("raft stream from remote node")
 }
 
 func (t *AergoRaftTransport) OnRaftSnapshot(s network.Stream) {

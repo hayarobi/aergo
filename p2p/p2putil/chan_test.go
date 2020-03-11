@@ -17,17 +17,17 @@ func TestClosedChannel(t *testing.T) {
 	cb := make(chan int)
 
 	go func(size int) {
-		for i:=0; i<size; i++ {
+		for i := 0; i < size; i++ {
 			ca <- i
 		}
 	}(100)
 	close(cb)
-	LOOP:
+LOOP:
 	for {
 		select {
 		case v := <-ca:
 			t.Log("got val ", v)
-			time.Sleep(time.Millisecond<<2)
+			time.Sleep(time.Millisecond << 2)
 		case <-cb:
 			t.Log("closed")
 			break LOOP

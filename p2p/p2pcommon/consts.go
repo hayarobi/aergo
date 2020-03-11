@@ -17,6 +17,7 @@ const (
 	MAGICMain uint32 = 0x47416841
 	MAGICTest uint32 = 0x2e415429
 
+	MAGICRaft     uint32 = 0xf58a0571
 	MAGICRaftSnap uint32 = 0x8fae0fd4
 
 	SigLength = 16
