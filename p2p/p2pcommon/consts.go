@@ -17,6 +17,7 @@ const (
 	MAGICMain uint32 = 0x47416841
 	MAGICTest uint32 = 0x2e415429
 
+	MAGICRaft     uint32 = 0xf58a0571
 	MAGICRaftSnap uint32 = 0x8fae0fd4
 
 	SigLength = 16
@@ -62,6 +63,7 @@ var ExperimentalVersions = []P2PVersion{P2PVersion200}
 // context of multiaddr, as higher type of p2p message
 const (
 	P2PSubAddr       core.ProtocolID = "/aergop2p"
+	RaftSubAddr  core.ProtocolID = "/aergop2p/raft"
 	RaftSnapSubAddr  core.ProtocolID = "/aergop2p/raftsnap"
 )
 
