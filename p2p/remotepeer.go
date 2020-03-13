@@ -25,18 +25,6 @@ import (
 var TimeoutError = errors.New("timeout")
 var CancelError = errors.New("canceled")
 
-type requestInfo struct {
-	cTime    time.Time
-	reqMO    p2pcommon.MsgOrder
-	receiver p2pcommon.ResponseReceiver
-}
-
-type queryMsg struct {
-	handler p2pcommon.MessageHandler
-	msg     p2pcommon.Message
-	msgBody p2pcommon.MessageBody
-}
-
 // remotePeerImpl represent remote peer to which is connected
 type remotePeerImpl struct {
 	logger       *log.Logger
@@ -61,7 +49,7 @@ type remotePeerImpl struct {
 	closeWrite chan struct{}
 
 	// used to access request data from response handlers
-	requests map[p2pcommon.MsgID]*requestInfo
+	requests map[p2pcommon.MsgID]*p2pcommon.RequestInfo
 	reqMutex *sync.Mutex
 
 	handlers map[p2pcommon.SubProtocol]p2pcommon.MessageHandler
@@ -100,7 +88,7 @@ func newRemotePeer(remote p2pcommon.RemoteInfo, manageNum uint32, pm p2pcommon.P
 		stopChan:   make(chan struct{}, 1),
 		closeWrite: make(chan struct{}),
 		certChan:   make(chan *p2pcommon.AgentCertificateV1),
-		requests:   make(map[p2pcommon.MsgID]*requestInfo),
+		requests:   make(map[p2pcommon.MsgID]*p2pcommon.RequestInfo),
 		reqMutex:   &sync.Mutex{},
 
 		handlers: make(map[p2pcommon.SubProtocol]p2pcommon.MessageHandler),
@@ -398,13 +386,19 @@ func (p *remotePeerImpl) PushTxsNotice(txHashes []types.TxID) {
 	}
 }
 
+func (p *remotePeerImpl) RegisterRequest(info *p2pcommon.RequestInfo) {
+	p.reqMutex.Lock()
+	defer p.reqMutex.Unlock()
+	p.requests[info.ReqMO.GetMsgID()] = info
+}
+
 // ConsumeRequest remove request from request history.
 func (p *remotePeerImpl) ConsumeRequest(msgID p2pcommon.MsgID) p2pcommon.MsgOrder {
 	p.reqMutex.Lock()
 	defer p.reqMutex.Unlock()
 	if r, ok := p.requests[msgID]; ok {
 		delete(p.requests, msgID)
-		return r.reqMO
+		return r.ReqMO
 	}
 	return nil
 }
@@ -425,15 +419,15 @@ func (p *remotePeerImpl) GetReceiver(originalID p2pcommon.MsgID) p2pcommon.Respo
 	req, found := p.requests[originalID]
 	if !found {
 		return p.requestIDNotFoundReceiver
-	} else if req.receiver == nil {
+	} else if req.Receiver == nil {
 		return p.passThroughReceiver
 	} else {
-		return req.receiver
+		return req.Receiver
 	}
 }
 
 func (p *remotePeerImpl) writeToPeer(m p2pcommon.MsgOrder) {
-	if err := m.SendTo(p); err != nil {
+	if err := m.SendTo(p, p.rw); err != nil {
 		// write fail
 		p.Stop()
 	}
@@ -504,10 +498,10 @@ func (p *remotePeerImpl) pruneRequests() {
 	p.reqMutex.Lock()
 	defer p.reqMutex.Unlock()
 	for key, m := range p.requests {
-		if m.cTime.Before(expireTime) {
+		if m.CTime.Before(expireTime) {
 			delete(p.requests, key)
 			if debugLog {
-				deletedReqs = append(deletedReqs, m.reqMO.GetProtocolID().String()+"/"+key.String()+m.cTime.String())
+				deletedReqs = append(deletedReqs, m.ReqMO.GetProtocolID().String()+"/"+key.String()+m.CTime.String())
 			}
 			deletedCnt++
 		}
@@ -555,7 +549,7 @@ func (p *remotePeerImpl) addCert(cert *p2pcommon.AgentCertificateV1) {
 		}
 	}
 	newCerts = append(newCerts, cert)
-	p.logger.Info().Str(p2putil.LogPeerName, p.Name()).Str("bpID", p2putil.ShortForm(cert.BPID)).Time("cTime", cert.CreateTime).Time("eTime", cert.ExpireTime).Msg("agent certificate is added to certificate list of remote peer")
+	p.logger.Info().Str(p2putil.LogPeerName, p.Name()).Str("bpID", p2putil.ShortForm(cert.BPID)).Time("CTime", cert.CreateTime).Time("eTime", cert.ExpireTime).Msg("agent certificate is added to certificate list of remote peer")
 	p.remoteInfo.Certificates = newCerts
 	if len(newCerts) > 0 && p.AcceptedRole() == types.PeerRole_Watcher {
 		p.logger.Info().Str(p2putil.LogPeerName, p.Name()).Msg("peer has certificates now. peer is promoted to Agent")

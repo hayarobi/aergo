@@ -44,8 +44,9 @@ type RemotePeer interface {
 	SendAndWaitMessage(msg MsgOrder, ttl time.Duration) error
 
 	PushTxsNotice(txHashes []types.TxID)
-	// utility method
 
+	// utility method
+	RegisterRequest(info *RequestInfo)
 	ConsumeRequest(msgID MsgID) MsgOrder
 	GetReceiver(id MsgID) ResponseReceiver
 
@@ -63,5 +64,4 @@ type RemotePeer interface {
 
 	// DoTask execute task in remote peer's own goroutine, it should not consume lots of time to process.
 	DoTask(task PeerTask) bool
-
 }

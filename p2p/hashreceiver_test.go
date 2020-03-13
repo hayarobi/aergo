@@ -152,7 +152,7 @@ func TestBlockHashesReceiver_ReceiveResp(t *testing.T) {
 				//	break
 				//}
 			}
-			// if sender is supposed to send other partial messages, receiver will wait and cleanup those messages
+			// if sender is supposed to send other partial messages, Receiver will wait and cleanup those messages
 			if (br.senderFinished != nil ) != (test.instantFinish == 0) {
 				t.Fatalf("cleanup routine is %v , want %v)", (br.senderFinished != nil ), (test.instantFinish == 0))
 			}

@@ -8,6 +8,7 @@ package p2pcommon
 import (
 	"github.com/aergoio/aergo/types"
 	"github.com/aergoio/etcd/raft/raftpb"
+	"time"
 )
 
 //go:generate mockgen -source=internalmsg.go -package=p2pmock -destination=../p2pmock/mock_msgorder.go
@@ -23,7 +24,7 @@ type MsgOrder interface {
 	GetProtocolID() SubProtocol
 
 	// SendTo send message to remote peer. it return err if write fails, or nil if write is successful or ignored.
-	SendTo(p RemotePeer) error
+	SendTo(p RemotePeer, rw MsgReadWriter) error
 	CancelSend(pi RemotePeer)
 }
 
@@ -36,5 +37,11 @@ type MoFactory interface {
 	NewMsgBPBroadcastOrder(noticeMsg *types.BlockProducedNotice) MsgOrder
 	NewRaftMsgOrder(msgType raftpb.MessageType, raftMsg *raftpb.Message) MsgOrder
 	NewTossMsgOrder(orgMsg Message) MsgOrder
+}
+
+type RequestInfo struct {
+	CTime    time.Time
+	ReqMO    MsgOrder
+	Receiver ResponseReceiver
 }
 

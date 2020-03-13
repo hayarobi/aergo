@@ -6,6 +6,7 @@
 package p2p
 
 import (
+	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/etcd/raft/raftpb"
@@ -17,6 +18,7 @@ import (
 
 type baseMOFactory struct {
 	is p2pcommon.InternalService
+	logger *log.Logger
 }
 
 
@@ -115,6 +117,7 @@ func (mf *baseMOFactory) fillUpMsgOrder(mo *pbMessageOrder, msgID, orgID uuid.UU
 	mo.needSign = true
 	mo.message = msg
 	mo.trace = true
+	mo.logger = mf.logger
 
 	return true
 }

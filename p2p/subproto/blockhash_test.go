@@ -369,7 +369,7 @@ func (mo *testMo) GetProtocolID() p2pcommon.SubProtocol {
 	return mo.protocolID
 }
 
-func (mo *testMo) SendTo(p p2pcommon.RemotePeer) error {
+func (mo *testMo) SendTo(p p2pcommon.RemotePeer, rw p2pcommon.MsgReadWriter) error {
 	return nil
 }
 

@@ -106,7 +106,7 @@ func (mr *MockMsgOrderMockRecorder) GetProtocolID() *gomock.Call {
 }
 
 // SendTo mocks base method
-func (m *MockMsgOrder) SendTo(p p2pcommon.RemotePeer) error {
+func (m *MockMsgOrder) SendTo(p p2pcommon.RemotePeer, rw p2pcommon.MsgReadWriter) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SendTo", p)
 	ret0, _ := ret[0].(error)

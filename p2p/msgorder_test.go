@@ -53,7 +53,7 @@ func Test_pbRequestOrder_SendTo(t *testing.T) {
 			prevCacheSize := len(peer.requests)
 			msgID := pr.GetMsgID()
 
-			if err := pr.SendTo(peer); (err != nil) != tt.wantErr {
+			if err := pr.SendTo(peer, mockRW); (err != nil) != tt.wantErr {
 				t.Errorf("pbRequestOrder.SendTo() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
@@ -61,7 +61,7 @@ func Test_pbRequestOrder_SendTo(t *testing.T) {
 				assert.Equal(t, prevCacheSize+1, len(peer.requests))
 				actualMo, ok := peer.requests[msgID]
 				assert.True(t, ok)
-				assert.Equal(t, pr, actualMo.reqMO)
+				assert.Equal(t, pr, actualMo.ReqMO)
 			} else {
 				assert.Equal(t, prevCacheSize, len(peer.requests))
 			}
@@ -99,10 +99,10 @@ func Test_pbMessageOrder_SendTo(t *testing.T) {
 			pr := factory.NewMsgResponseOrder(p2pcommon.NewMsgID(), p2pcommon.PingResponse, &types.Pong{})
 			msgID := pr.GetMsgID()
 			// put dummy request information in cache
-			peer.requests[msgID] = &requestInfo{reqMO: &pbRequestOrder{}}
+			peer.requests[msgID] = &p2pcommon.RequestInfo{ReqMO: &pbRequestOrder{}}
 			prevCacheSize := len(peer.requests)
 
-			if err := pr.SendTo(peer); (err != nil) != tt.wantErr {
+			if err := pr.SendTo(peer, mockRW); (err != nil) != tt.wantErr {
 				t.Errorf("pbMessageOrder.SendTo() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			// not affect any cache
@@ -154,13 +154,13 @@ func Test_pbBlkNoticeOrder_SendTo(t *testing.T) {
 			msgID := sampleMsgID
 			// notice broadcast is affected by cache
 			// put dummy request information in cache
-			peer.requests[msgID] = &requestInfo{reqMO: &pbRequestOrder{}}
+			peer.requests[msgID] = &p2pcommon.RequestInfo{ReqMO: &pbRequestOrder{}}
 			prevCacheSize := len(peer.requests)
 			if tt.keyExist {
 				hashKey := types.ToBlockID(dummyBlockHash)
 				peer.blkHashCache.Add(hashKey, true)
 			}
-			if err := target.SendTo(peer); (err != nil) != tt.wantErr {
+			if err := target.SendTo(peer, mockRW); (err != nil) != tt.wantErr {
 				t.Errorf("pbMessageOrder.SendTo() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			// not affect any cache
@@ -228,9 +228,9 @@ func Test_pbBlkNoticeOrder_SendTo_SkipByHeight(t *testing.T) {
 				msgID := sampleMsgID
 				// notice broadcast is affected by cache
 				// put dummy request information in cache
-				peer.requests[msgID] = &requestInfo{reqMO: &pbRequestOrder{}}
+				peer.requests[msgID] = &p2pcommon.RequestInfo{ReqMO: &pbRequestOrder{}}
 
-				if err := target.SendTo(peer); err != nil {
+				if err := target.SendTo(peer, mockRW); err != nil {
 					t.Errorf("pbMessageOrder.SendTo() error = %v, want nil", err)
 				}
 				if skipMax < peer.skipCnt {
@@ -304,9 +304,9 @@ func Test_pbBlkNoticeOrder_SendTo_SkipByTime(t *testing.T) {
 				msgID := sampleMsgID
 				// notice broadcast is affected by cache
 				// put dummy request information in cache
-				peer.requests[msgID] = &requestInfo{reqMO: &pbRequestOrder{}}
+				peer.requests[msgID] = &p2pcommon.RequestInfo{ReqMO: &pbRequestOrder{}}
 
-				if err := target.SendTo(peer); err != nil {
+				if err := target.SendTo(peer, mockRW); err != nil {
 					t.Errorf("pbMessageOrder.SendTo() error = %v, want nil", err)
 				}
 				if skipMax < peer.skipCnt {
@@ -363,7 +363,7 @@ func Test_pbTxNoticeOrder_SendTo(t *testing.T) {
 			msgID := pr.GetMsgID()
 			// notice broadcast is affected by cache
 			// put dummy request information in cache
-			peer.requests[msgID] = &requestInfo{reqMO: &pbRequestOrder{}}
+			peer.requests[msgID] = &p2pcommon.RequestInfo{ReqMO: &pbRequestOrder{}}
 			prevCacheSize := len(peer.requests)
 			var hashKey types.TxID
 			for i := 0; i < tt.keyExist; i++ {
@@ -371,7 +371,7 @@ func Test_pbTxNoticeOrder_SendTo(t *testing.T) {
 				peer.txHashCache.Add(hashKey, true)
 			}
 
-			if err := pr.SendTo(peer); (err != nil) != tt.wantErr {
+			if err := pr.SendTo(peer, mockRW); (err != nil) != tt.wantErr {
 				t.Errorf("pbRequestOrder.SendTo() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			// not affect any cache
