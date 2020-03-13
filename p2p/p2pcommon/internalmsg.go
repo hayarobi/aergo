@@ -8,6 +8,7 @@ package p2pcommon
 import (
 	"github.com/aergoio/aergo/types"
 	"github.com/aergoio/etcd/raft/raftpb"
+	"time"
 )
 
 //go:generate mockgen -source=internalmsg.go -package=p2pmock -destination=../p2pmock/mock_msgorder.go
@@ -27,6 +28,17 @@ type MsgOrder interface {
 	CancelSend(pi RemotePeer)
 }
 
+type MsgTarget interface {
+	Name() string
+	WriteMsg(message Message) error
+
+	RegisterRequest(info *RequestInfo)
+	ConsumeRequest(msgID MsgID) MsgOrder
+
+	// ToTrace determine to log trace this types of message or not
+	//ToTrace(protocol SubProtocol) bool
+}
+
 type MoFactory interface {
 	NewMsgRequestOrder(expectResponse bool, protocolID SubProtocol, message MessageBody) MsgOrder
 	NewMsgRequestOrderWithReceiver(respReceiver ResponseReceiver, protocolID SubProtocol, message MessageBody) MsgOrder
@@ -36,5 +48,11 @@ type MoFactory interface {
 	NewMsgBPBroadcastOrder(noticeMsg *types.BlockProducedNotice) MsgOrder
 	NewRaftMsgOrder(msgType raftpb.MessageType, raftMsg *raftpb.Message) MsgOrder
 	NewTossMsgOrder(orgMsg Message) MsgOrder
+}
+
+type RequestInfo struct {
+	CTime    time.Time
+	ReqMO    MsgOrder
+	Receiver ResponseReceiver
 }
 
