@@ -41,7 +41,7 @@ func FailTestGetPeers(t *testing.T) {
 			peerID := types.PeerID(strconv.Itoa(i))
 			peerMeta := p2pcommon.PeerMeta{ID: peerID}
 			remoteInfo := p2pcommon.RemoteInfo{Meta: peerMeta}
-			target.remotePeers[peerID] = newRemotePeer(remoteInfo, 0, target, mockActor, logger, nil, nil, nil)
+			target.remotePeers[peerID] = newRemotePeer(remoteInfo, 0, target, mockActor, logger, nil, nil)
 			if i == (iterSize >> 2) {
 				wg.Done()
 			}
@@ -81,7 +81,7 @@ func TestPeerManager_GetPeers(t *testing.T) {
 			peerID := types.PeerID(strconv.Itoa(i))
 			peerMeta := p2pcommon.PeerMeta{ID: peerID}
 			remoteInfo := p2pcommon.RemoteInfo{Meta: peerMeta}
-			target.insertPeer(peerID, newRemotePeer(remoteInfo, 0, target, mockActorServ, logger, nil, nil, nil))
+			target.insertPeer(peerID, newRemotePeer(remoteInfo, 0, target, mockActorServ, logger, nil, nil))
 			if i == (iterSize >> 2) {
 				wg.Done()
 			}

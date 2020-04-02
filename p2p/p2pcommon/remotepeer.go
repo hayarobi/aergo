@@ -40,7 +40,6 @@ type RemotePeer interface {
 	SendMessage(msg MsgOrder)
 	// TrySendMessage try to send message with check. It will not send message and
 	// return false if io write buffer is full or prev tx query was not responed.
-	TrySendMessage(msg MsgOrder) bool
 	SendAndWaitMessage(msg MsgOrder, ttl time.Duration) error
 
 	PushTxsNotice(txHashes []types.TxID)
@@ -63,5 +62,4 @@ type RemotePeer interface {
 
 	// DoTask execute task in remote peer's own goroutine, it should not consume lots of time to process.
 	DoTask(task PeerTask) bool
-
 }

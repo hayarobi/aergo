@@ -49,16 +49,10 @@ type remotePeerImpl struct {
 	actor      p2pcommon.ActorService
 	pm         p2pcommon.PeerManager
 	mf         p2pcommon.MoFactory
-	signer     p2pcommon.MsgSigner
 	metric     *metric.PeerMetric
 
 	certChan chan *p2pcommon.AgentCertificateV1
-	stopChan chan struct{}
-
-	// direct write channel
-	writeBuf   chan p2pcommon.MsgOrder
-	writeDirect chan p2pcommon.MsgOrder
-	closeWrite chan struct{}
+	stopChan chan error
 
 	// used to access request data from response handlers
 	requests map[p2pcommon.MsgID]*requestInfo
@@ -77,7 +71,7 @@ type remotePeerImpl struct {
 	txNoticeQueue       *p2putil.PressableQueue
 	maxTxNoticeHashSize int
 
-	rw p2pcommon.MsgReadWriter
+	sessions []StreamSession
 
 	taskChannel       chan p2pcommon.PeerTask
 
@@ -88,17 +82,16 @@ type remotePeerImpl struct {
 var _ p2pcommon.RemotePeer = (*remotePeerImpl)(nil)
 
 // newRemotePeer create an object which represent a remote peer.
-func newRemotePeer(remote p2pcommon.RemoteInfo, manageNum uint32, pm p2pcommon.PeerManager, actor p2pcommon.ActorService, log *log.Logger, mf p2pcommon.MoFactory, signer p2pcommon.MsgSigner, rw p2pcommon.MsgReadWriter) *remotePeerImpl {
+func newRemotePeer(remote p2pcommon.RemoteInfo, manageNum uint32, pm p2pcommon.PeerManager, actor p2pcommon.ActorService, log *log.Logger, mf p2pcommon.MoFactory, rw p2pcommon.MsgReadWriter) *remotePeerImpl {
 	rPeer := &remotePeerImpl{
 		remoteInfo: remote, manageNum: manageNum, pm: pm,
 		name:  fmt.Sprintf("%s#%d", p2putil.ShortForm(remote.Meta.ID), manageNum),
-		actor: actor, logger: log, mf: mf, signer: signer, rw: rw,
+		actor: actor, logger: log, mf: mf,
 		pingDuration: defaultPingInterval,
 		state:        types.STARTING,
 
 		lastStatus: &types.LastBlockStatus{},
-		stopChan:   make(chan struct{}, 1),
-		closeWrite: make(chan struct{}),
+		stopChan:   make(chan error, 1),
 		certChan:   make(chan *p2pcommon.AgentCertificateV1),
 		requests:   make(map[p2pcommon.MsgID]*requestInfo),
 		reqMutex:   &sync.Mutex{},
@@ -110,8 +103,7 @@ func newRemotePeer(remote p2pcommon.RemoteInfo, manageNum uint32, pm p2pcommon.P
 		maxTxNoticeHashSize: DefaultPeerTxQueueSize,
 		taskChannel: make(chan p2pcommon.PeerTask, 1),
 	}
-	rPeer.writeBuf = make(chan p2pcommon.MsgOrder, writeMsgBufferSize)
-	rPeer.writeDirect = make(chan p2pcommon.MsgOrder)
+	rPeer.sessions = append(rPeer.sessions, NewStreamSession(rPeer, rw, log, baseP2P) )
 
 	var err error
 	rPeer.blkHashCache, err = lru.New(DefaultPeerBlockCacheSize)
@@ -180,14 +172,15 @@ func (p *remotePeerImpl) RunPeer() {
 	p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Msg("Starting peer")
 	pingTicker := time.NewTicker(p.pingDuration)
 
-	go p.runWrite()
-	go p.runRead()
-
+	for _, sess := range p.sessions {
+		sess.Start()
+	}
 	txNoticeTicker := time.NewTicker(txNoticeInterval)
 	certCleanupTicker := time.NewTicker(p2pcommon.RemoteCertCheckInterval)
 
 	// peer state is changed to RUNNING after all sub goroutine is ready, and to STOPPED before fll sub goroutine is stopped.
 	p.state.SetAndGet(types.RUNNING)
+	var err error
 READNOPLOOP:
 	for {
 		select {
@@ -203,83 +196,25 @@ READNOPLOOP:
 		case task := <- p.taskChannel:
 			p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Msg("Executing task for peer")
 			task(p)
-		case <-p.stopChan:
+		case err = <-p.stopChan:
+			if err == nil {
+				err = errors.New("normal close")
+			}
 			break READNOPLOOP
 		}
 	}
 
-	p.logger.Info().Str(p2putil.LogPeerName, p.Name()).Msg("Finishing peer")
+	p.logger.Info().Str("cause",err.Error()).Str(p2putil.LogPeerName, p.Name()).Msg("Finishing peer")
 	txNoticeTicker.Stop()
 	pingTicker.Stop()
 	// finish goroutine write. read goroutine will be closed automatically when disconnect
-	close(p.closeWrite)
+	for _, sess := range p.sessions {
+		sess.Stop(nil)
+	}
 	close(p.stopChan)
 	p.state.SetAndGet(types.STOPPED)
 
 	p.pm.RemovePeer(p)
-}
-
-func (p *remotePeerImpl) runWrite() {
-	cleanupTicker := time.NewTicker(cleanRequestInterval)
-	defer func() {
-		if r := recover(); r != nil {
-			p.logger.Panic().Str("callStack", string(debug.Stack())).Str(p2putil.LogPeerName, p.Name()).Str("recover", fmt.Sprint(r)).Msg("There were panic in runWrite ")
-		}
-	}()
-
-WRITELOOP:
-	for {
-		select {
-		case m := <-p.writeBuf:
-			p.writeToPeer(m)
-		case m := <-p.writeDirect:
-			p.writeToPeer(m)
-		case <-cleanupTicker.C:
-			p.pruneRequests()
-		case <-p.closeWrite:
-			p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Msg("Quitting runWrite")
-			break WRITELOOP
-		}
-	}
-	cleanupTicker.Stop()
-	p.cleanupWrite()
-	p.rw.Close()
-
-	// closing channel is up to golang runtime
-	// close(p.write)
-	// close(p.consumeChan)
-}
-
-func (p *remotePeerImpl) cleanupWrite() {
-	// 1. cleaning receive handlers. TODO add code
-
-	// 2. canceling not sent orders
-	for {
-		select {
-		case m := <-p.writeBuf:
-			m.CancelSend(p)
-		default:
-			return
-		}
-	}
-}
-
-func (p *remotePeerImpl) runRead() {
-	for {
-		msg, err := p.rw.ReadMsg()
-		if err != nil {
-			// TODO set different log level by case (i.e. it can be expected if peer is disconnecting )
-			p.logger.Warn().Str(p2putil.LogPeerName, p.Name()).Err(err).Msg("Failed to read message")
-			p.Stop()
-			return
-		}
-		if err = p.handleMsg(msg); err != nil {
-			// TODO set different log level by case (i.e. it can be expected if peer is disconnecting )
-			p.logger.Warn().Str(p2putil.LogPeerName, p.Name()).Err(err).Msg("Failed to handle message")
-			p.Stop()
-			return
-		}
-	}
 }
 
 func (p *remotePeerImpl) handleMsg(msg p2pcommon.Message) (err error) {
@@ -330,9 +265,17 @@ func (p *remotePeerImpl) handleMsg(msg p2pcommon.Message) (err error) {
 func (p *remotePeerImpl) Stop() {
 	prevState := p.state.SetAndGet(types.STOPPING)
 	if prevState <= types.RUNNING {
-		p.stopChan <- struct{}{}
+		p.stopChan <- nil
 	}
 
+}
+
+func (p *remotePeerImpl) ReportFail(err error) {
+	// TODO duplicated code to Stop()
+	prevState := p.state.SetAndGet(types.STOPPING)
+	if prevState <= types.RUNNING {
+		p.stopChan <- err
+	}
 }
 
 func (p *remotePeerImpl) SendMessage(msg p2pcommon.MsgOrder) {
@@ -341,30 +284,11 @@ func (p *remotePeerImpl) SendMessage(msg p2pcommon.MsgOrder) {
 			Str(p2putil.LogMsgID, msg.GetMsgID().String()).Str("current_state", p.State().String()).Msg("Cancel sending message, since peer is not running state")
 		return
 	}
-	select {
-	case p.writeBuf <- msg:
-		// it's OK
-	default:
+	if !p.sessions[0].SendMessage(msg) {
 		p.logger.Info().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogProtoID, msg.GetProtocolID().String()).
 			Str(p2putil.LogMsgID, msg.GetMsgID().String()).Msg("Remote peer is busy or down")
 		// TODO find more elegant way to handled flooding queue. in lots of cases, pending for dropped tx notice or newBlock notice (not blockProduced notice) are not critical in lots of cases.
 		p.Stop()
-	}
-}
-
-
-func (p *remotePeerImpl) TrySendMessage(msg p2pcommon.MsgOrder) bool {
-	if p.State() > types.RUNNING {
-		p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogProtoID, msg.GetProtocolID().String()).
-			Str(p2putil.LogMsgID, msg.GetMsgID().String()).Str("current_state", p.State().String()).Msg("Cancel sending message, since peer is not running state")
-		return false
-	}
-	select {
-	case p.writeBuf <- msg:
-		// succeed to send message
-		return true
-	default:
-		return false
 	}
 }
 
@@ -374,16 +298,14 @@ func (p *remotePeerImpl) SendAndWaitMessage(msg p2pcommon.MsgOrder, timeout time
 			Str(p2putil.LogMsgID, msg.GetMsgID().String()).Str("current_state", p.State().String()).Msg("Cancel sending message, since peer is not running state")
 		return fmt.Errorf("not running")
 	}
-	select {
-	case p.writeBuf <- msg:
-		return nil
-	case <-time.NewTimer(timeout).C:
+	if !p.sessions[0].SendAndWaitMessage(msg, timeout) {
 		p.logger.Info().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogProtoID, msg.GetProtocolID().String()).
 			Str(p2putil.LogMsgID, msg.GetMsgID().String()).Msg("Remote peer is busy or down")
 		// TODO find more elegant way to handled flooding queue. in lots of cases, pending for dropped tx notice or newBlock notice (not blockProduced notice) are not critical in lots of cases.
 		p.Stop()
 		return TimeoutError
 	}
+		return nil
 }
 
 func (p *remotePeerImpl) PushTxsNotice(txHashes []types.TxID) {
@@ -429,13 +351,6 @@ func (p *remotePeerImpl) GetReceiver(originalID p2pcommon.MsgID) p2pcommon.Respo
 		return p.passThroughReceiver
 	} else {
 		return req.receiver
-	}
-}
-
-func (p *remotePeerImpl) writeToPeer(m p2pcommon.MsgOrder) {
-	if err := m.SendTo(p); err != nil {
-		// write fail
-		p.Stop()
 	}
 }
 

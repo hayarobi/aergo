@@ -18,7 +18,6 @@ import (
 	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
-	"github.com/gofrs/uuid"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 )
@@ -332,12 +331,11 @@ func TestRemotePeerImpl_UpdateBlkCache(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			mockActor := new(p2pmock.MockActorService)
 			mockPeerManager := new(p2pmock.MockPeerManager)
-			mockSigner := new(p2pmock.MockMsgSigner)
 			mockMF := new(p2pmock.MockMoFactory)
 			sampleConn := p2pcommon.RemoteConn{IP:net.ParseIP(sampleMeta.PrimaryAddress()),Port:sampleMeta.PrimaryPort()}
 			sampleRemote := p2pcommon.RemoteInfo{Meta:sampleMeta, Connection:sampleConn}
 
-			target := newRemotePeer(sampleRemote, 0, mockPeerManager, mockActor, logger, mockMF, mockSigner, nil)
+			target := newRemotePeer(sampleRemote, 0, mockPeerManager, mockActor, logger, mockMF, nil)
 			for _, hash := range test.inCache {
 				target.blkHashCache.Add(hash, true)
 			}
@@ -364,12 +362,11 @@ func TestRemotePeerImpl_UpdateTxCache(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			mockActor := new(p2pmock.MockActorService)
 			mockPeerManager := new(p2pmock.MockPeerManager)
-			mockSigner := new(p2pmock.MockMsgSigner)
 			mockMF := new(p2pmock.MockMoFactory)
 			sampleConn := p2pcommon.RemoteConn{IP:net.ParseIP(sampleMeta.PrimaryAddress()),Port:sampleMeta.PrimaryPort()}
 			sampleRemote := p2pcommon.RemoteInfo{Meta:sampleMeta, Connection:sampleConn}
 
-			target := newRemotePeer(sampleRemote, 0, mockPeerManager, mockActor, logger, mockMF, mockSigner, nil)
+			target := newRemotePeer(sampleRemote, 0, mockPeerManager, mockActor, logger, mockMF, nil)
 			for _, hash := range test.inCache {
 				target.txHashCache.Add(hash, true)
 			}
@@ -418,14 +415,13 @@ func TestRemotePeerImpl_GetReceiver(t *testing.T) {
 
 			mockActor := new(p2pmock.MockActorService)
 			mockPeerManager := new(p2pmock.MockPeerManager)
-			mockSigner := new(p2pmock.MockMsgSigner)
 			mockMF := new(p2pmock.MockMoFactory)
 			sampleConn := p2pcommon.RemoteConn{IP:net.ParseIP(sampleMeta.PrimaryAddress()),Port:sampleMeta.PrimaryPort()}
 			sampleRemote := p2pcommon.RemoteInfo{Meta:sampleMeta, Connection:sampleConn}
 			mockMo := p2pmock.NewMockMsgOrder(ctrl)
 			mockMo.EXPECT().GetProtocolID().Return(p2pcommon.GetBlocksRequest).AnyTimes()
 
-			p := newRemotePeer(sampleRemote, 0, mockPeerManager, mockActor, logger, mockMF, mockSigner, nil)
+			p := newRemotePeer(sampleRemote, 0, mockPeerManager, mockActor, logger, mockMF, nil)
 			for _, add := range test.toAdd {
 				p.requests[add] = &requestInfo{receiver: recvList[add],reqMO:mockMo}
 			}
@@ -469,7 +465,6 @@ func TestRemotePeerImpl_pushTxsNotice(t *testing.T) {
 			mockMO := p2pmock.NewMockMsgOrder(ctrl)
 			mockPeerManager := p2pmock.NewMockPeerManager(ctrl)
 			mockMF := p2pmock.NewMockMoFactory(ctrl)
-			mockSigner := new(p2pmock.MockMsgSigner)
 
 			mockMO.EXPECT().GetMsgID().Return(p2pcommon.NewMsgID()).AnyTimes()
 			mockMF.EXPECT().NewMsgTxBroadcastOrder(gomock.Any()).Return(mockMO).
@@ -478,7 +473,7 @@ func TestRemotePeerImpl_pushTxsNotice(t *testing.T) {
 			sampleConn := p2pcommon.RemoteConn{IP:net.ParseIP(sampleMeta.PrimaryAddress()),Port:sampleMeta.PrimaryPort()}
 			sampleRemote := p2pcommon.RemoteInfo{Meta:sampleMeta, Connection:sampleConn}
 
-			p := newRemotePeer(sampleRemote, 0, mockPeerManager, nil, logger, mockMF, mockSigner, nil)
+			p := newRemotePeer(sampleRemote, 0, mockPeerManager, nil, logger, mockMF, nil)
 			p.txNoticeQueue = p2putil.NewPressableQueue(maxTxHashSize)
 			p.maxTxNoticeHashSize = maxTxHashSize
 
@@ -486,68 +481,7 @@ func TestRemotePeerImpl_pushTxsNotice(t *testing.T) {
 		})
 	}
 }
-func TestRemotePeer_writeToPeer(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
-	rand := uuid.Must(uuid.NewV4())
-	var sampleMsgID p2pcommon.MsgID
-	copy(sampleMsgID[:], rand[:])
-	type args struct {
-		StreamResult error
-		signErr      error
-		needResponse bool
-		sendErr      error
-	}
-	type wants struct {
-		sendCnt   int
-		expReqCnt int
-	}
-	tests := []struct {
-		name  string
-		args  args
-		wants wants
-	}{
-		{"TNReq1", args{}, wants{1, 0}},
-		// {"TNReqWResp1", args{needResponse: true}, wants{1, 1}},
-
-		// error while signing
-		// error while get stream
-		// TODO this case is evaluated in pbMsgOrder tests
-		// {"TFSend1", args{needResponse: true, sendErr: sampleErr}, wants{1, 0}},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mockPeerManager := p2pmock.NewMockPeerManager(ctrl)
-			mockMO := p2pmock.NewMockMsgOrder(ctrl)
-			mockStream := p2pmock.NewMockStream(ctrl)
-			dummyRW := p2pmock.NewMockMsgReadWriter(ctrl)
-			dummyRW.EXPECT().Close().AnyTimes()
-
-			mockStream.EXPECT().Close().Return(nil).AnyTimes()
-			mockMO.EXPECT().IsNeedSign().Return(true).AnyTimes()
-			mockMO.EXPECT().SendTo(gomock.Any()).Return(tt.args.sendErr)
-			mockMO.EXPECT().GetProtocolID().Return(p2pcommon.PingRequest).AnyTimes()
-			mockMO.EXPECT().GetMsgID().Return(sampleMsgID).AnyTimes()
-
-			sampleConn := p2pcommon.RemoteConn{IP:net.ParseIP(sampleMeta.PrimaryAddress()),Port:sampleMeta.PrimaryPort()}
-			sampleRemote := p2pcommon.RemoteInfo{Meta:sampleMeta, Connection:sampleConn}
-
-			p := newRemotePeer(sampleRemote, 0, mockPeerManager, nil, logger, nil, nil, dummyRW)
-			p.state.SetAndGet(types.RUNNING)
-			go p.runWrite()
-			p.state.SetAndGet(types.RUNNING)
-
-			p.writeToPeer(mockMO)
-
-			// FIXME wait in more reliable way
-			time.Sleep(50 * time.Millisecond)
-			close(p.closeWrite)
-			//mockOrder.AssertNumberOfCalls(t, "SendTo", tt.wants.sendCnt)
-			//assert.Equal(t, tt.wants.expReqCnt, len(p.requests))
-		})
-	}
-}
 
 func Test_remotePeerImpl_handleMsg_InPanic(t *testing.T) {
 	ctrl := gomock.NewController(t)

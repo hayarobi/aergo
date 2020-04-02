@@ -48,12 +48,12 @@ func Test_pbRequestOrder_SendTo(t *testing.T) {
 
 			mockRW.EXPECT().WriteMsg(gomock.Any()).Return(tt.writeErr)
 
-			peer := newRemotePeer(sampleRemote, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, mockRW)
+			peer := newRemotePeer(sampleRemote, 0, mockPeerManager, mockActorServ, logger, factory, mockRW)
 			pr := factory.NewMsgRequestOrder(true, p2pcommon.PingRequest, &types.Ping{})
 			prevCacheSize := len(peer.requests)
 			msgID := pr.GetMsgID()
 
-			if err := pr.SendTo(peer); (err != nil) != tt.wantErr {
+			if err := pr.SendTo(peer, mockRW); (err != nil) != tt.wantErr {
 				t.Errorf("pbRequestOrder.SendTo() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
@@ -95,14 +95,14 @@ func Test_pbMessageOrder_SendTo(t *testing.T) {
 
 			mockRW.EXPECT().WriteMsg(gomock.Any()).Return(tt.writeErr)
 
-			peer := newRemotePeer(sampleRemote, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, mockRW)
+			peer := newRemotePeer(sampleRemote, 0, mockPeerManager, mockActorServ, logger, factory, mockRW)
 			pr := factory.NewMsgResponseOrder(p2pcommon.NewMsgID(), p2pcommon.PingResponse, &types.Pong{})
 			msgID := pr.GetMsgID()
 			// put dummy request information in cache
 			peer.requests[msgID] = &requestInfo{reqMO: &pbRequestOrder{}}
 			prevCacheSize := len(peer.requests)
 
-			if err := pr.SendTo(peer); (err != nil) != tt.wantErr {
+			if err := pr.SendTo(peer, mockRW); (err != nil) != tt.wantErr {
 				t.Errorf("pbMessageOrder.SendTo() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			// not affect any cache
@@ -147,7 +147,7 @@ func Test_pbBlkNoticeOrder_SendTo(t *testing.T) {
 			} else {
 				mockRW.EXPECT().WriteMsg(gomock.Any()).Return(tt.writeErr).Times(1)
 			}
-			peer := newRemotePeer(sampleRemote, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, mockRW)
+			peer := newRemotePeer(sampleRemote, 0, mockPeerManager, mockActorServ, logger, factory, mockRW)
 			peer.lastStatus = &types.LastBlockStatus{}
 
 			target := factory.NewMsgBlkBroadcastOrder(&types.NewBlockNotice{BlockHash: dummyBlockHash, BlockNo:1})
@@ -160,7 +160,7 @@ func Test_pbBlkNoticeOrder_SendTo(t *testing.T) {
 				hashKey := types.ToBlockID(dummyBlockHash)
 				peer.blkHashCache.Add(hashKey, true)
 			}
-			if err := target.SendTo(peer); (err != nil) != tt.wantErr {
+			if err := target.SendTo(peer, mockRW); (err != nil) != tt.wantErr {
 				t.Errorf("pbMessageOrder.SendTo() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			// not affect any cache
@@ -219,7 +219,7 @@ func Test_pbBlkNoticeOrder_SendTo_SkipByHeight(t *testing.T) {
 
 			notiNo := uint64(99999)
 			peerBlkNo := uint64(int64(notiNo)+int64(tt.noDiff))
-			peer := newRemotePeer(sampleRemote, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, mockRW)
+			peer := newRemotePeer(sampleRemote, 0, mockPeerManager, mockActorServ, logger, factory, mockRW)
 			peer.lastStatus = &types.LastBlockStatus{BlockNumber:peerBlkNo}
 
 			skipMax := int32(0)
@@ -230,7 +230,7 @@ func Test_pbBlkNoticeOrder_SendTo_SkipByHeight(t *testing.T) {
 				// put dummy request information in cache
 				peer.requests[msgID] = &requestInfo{reqMO: &pbRequestOrder{}}
 
-				if err := target.SendTo(peer); err != nil {
+				if err := target.SendTo(peer, mockRW); err != nil {
 					t.Errorf("pbMessageOrder.SendTo() error = %v, want nil", err)
 				}
 				if skipMax < peer.skipCnt {
@@ -295,7 +295,7 @@ func Test_pbBlkNoticeOrder_SendTo_SkipByTime(t *testing.T) {
 
 			notiNo := uint64(99999)
 			peerBlkNo := uint64(int64(notiNo)+int64(tt.noDiff))
-			peer := newRemotePeer(sampleRemote, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, mockRW)
+			peer := newRemotePeer(sampleRemote, 0, mockPeerManager, mockActorServ, logger, factory, mockRW)
 			peer.lastStatus = &types.LastBlockStatus{BlockNumber:peerBlkNo}
 
 			skipMax := int32(0)
@@ -306,7 +306,7 @@ func Test_pbBlkNoticeOrder_SendTo_SkipByTime(t *testing.T) {
 				// put dummy request information in cache
 				peer.requests[msgID] = &requestInfo{reqMO: &pbRequestOrder{}}
 
-				if err := target.SendTo(peer); err != nil {
+				if err := target.SendTo(peer, mockRW); err != nil {
 					t.Errorf("pbMessageOrder.SendTo() error = %v, want nil", err)
 				}
 				if skipMax < peer.skipCnt {
@@ -357,7 +357,7 @@ func Test_pbTxNoticeOrder_SendTo(t *testing.T) {
 				mockRW.EXPECT().WriteMsg(gomock.Any()).Return(tt.writeErr).Times(1)
 			}
 
-			peer := newRemotePeer(sampleRemote, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, mockRW)
+			peer := newRemotePeer(sampleRemote, 0, mockPeerManager, mockActorServ, logger, factory, mockRW)
 
 			pr := factory.NewMsgTxBroadcastOrder(&types.NewTransactionsNotice{TxHashes: sampleHashes})
 			msgID := pr.GetMsgID()
@@ -371,7 +371,7 @@ func Test_pbTxNoticeOrder_SendTo(t *testing.T) {
 				peer.txHashCache.Add(hashKey, true)
 			}
 
-			if err := pr.SendTo(peer); (err != nil) != tt.wantErr {
+			if err := pr.SendTo(peer, mockRW); (err != nil) != tt.wantErr {
 				t.Errorf("pbRequestOrder.SendTo() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			// not affect any cache

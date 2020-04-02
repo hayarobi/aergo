@@ -23,7 +23,7 @@ type MsgOrder interface {
 	GetProtocolID() SubProtocol
 
 	// SendTo send message to remote peer. it return err if write fails, or nil if write is successful or ignored.
-	SendTo(p RemotePeer) error
+	SendTo(p RemotePeer, rw MsgReadWriter) error
 	CancelSend(pi RemotePeer)
 }
 
