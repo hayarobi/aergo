@@ -31,8 +31,8 @@ func Test_baseWireHandshaker_writeWireHSRequest(t *testing.T) {
 		wantErr2 bool
 	}{
 		{"TEmpty", p2pcommon.HSHeadReq{p2pcommon.MAGICMain, nil}, false, 8, true},
-		{"TSingle", p2pcommon.HSHeadReq{p2pcommon.MAGICMain, []p2pcommon.P2PVersion{p2pcommon.P2PVersion033}}, false, 12, false},
-		{"TMulti", p2pcommon.HSHeadReq{p2pcommon.MAGICMain, []p2pcommon.P2PVersion{0x033333, 0x092fa10, p2pcommon.P2PVersion033, p2pcommon.P2PVersion032}}, false, 24, false},
+		{"TSingle", p2pcommon.HSHeadReq{p2pcommon.MAGICMain, []p2pcommon.P2PVersion{p2pcommon.P2PVersion230}}, false, 12, false},
+		{"TMulti", p2pcommon.HSHeadReq{p2pcommon.MAGICMain, []p2pcommon.P2PVersion{0x033333, 0x092fa10, p2pcommon.P2PVersion230, p2pcommon.P2PVersion200}}, false, 24, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -124,25 +124,26 @@ func TestInboundWireHandshker_handleInboundPeer(t *testing.T) {
 		wantErr bool
 	}{
 		// All valid
-		{"TCurrentVersion", p2pcommon.HSHeadReq{p2pcommon.MAGICMain, []p2pcommon.P2PVersion{p2pcommon.P2PVersion033, p2pcommon.P2PVersion032, 0x000101}}.Marshal(), p2pcommon.P2PVersion033, 0, false, p2pcommon.HSHeadResp{p2pcommon.MAGICMain, p2pcommon.P2PVersion033.Uint32()}.Marshal(), false},
-		{"TOldVersion", p2pcommon.HSHeadReq{p2pcommon.MAGICMain, []p2pcommon.P2PVersion{0x000010, p2pcommon.P2PVersion032, 0x000101}}.Marshal(), p2pcommon.P2PVersion032, 0, false, p2pcommon.HSHeadResp{p2pcommon.MAGICMain, p2pcommon.P2PVersion032.Uint32()}.Marshal(), false},
+		{"TCurrentVersion", p2pcommon.HSHeadReq{p2pcommon.MAGICMain, []p2pcommon.P2PVersion{p2pcommon.P2PVersion230, p2pcommon.P2PVersion200, 0x000101}}.Marshal(), p2pcommon.P2PVersion230, 0, false, p2pcommon.HSHeadResp{p2pcommon.MAGICMain, p2pcommon.P2PVersion230.Uint32()}.Marshal(), false},
+		{"TLegacyVersion", p2pcommon.HSHeadReq{p2pcommon.MAGICMain, []p2pcommon.P2PVersion{0x000010, p2pcommon.P2PVersion200, 0x000101}}.Marshal(), p2pcommon.P2PVersion200, 0, false, p2pcommon.HSHeadResp{p2pcommon.MAGICMain, p2pcommon.P2PVersion200.Uint32()}.Marshal(), false},
+		{"TTooOldVersion", p2pcommon.HSHeadReq{p2pcommon.MAGICMain, []p2pcommon.P2PVersion{p2pcommon.P2PVersion033, p2pcommon.P2PVersion032, 0x000101}}.Marshal(), p2pcommon.P2PVersionUnknown, 0, false, p2pcommon.HSHeadResp{0,p2pcommon.HSCodeNoMatchedVersion}.Marshal(), true},
 		// wrong io read
-		{"TWrongRead", sampleEmptyHSReq.Marshal()[:7], p2pcommon.P2PVersion033, 0, false, sampleEmptyHSResp.Marshal(), true},
+		{"TWrongRead", sampleEmptyHSReq.Marshal()[:7], p2pcommon.P2PVersion230, 0, false, sampleEmptyHSResp.Marshal(), true},
 		// empty version
-		{"TEmptyVersion", sampleEmptyHSReq.Marshal(), p2pcommon.P2PVersion033, 0, false, sampleEmptyHSResp.Marshal(), true},
+		{"TEmptyVersion", sampleEmptyHSReq.Marshal(), p2pcommon.P2PVersion230, 0, false, sampleEmptyHSResp.Marshal(), true},
 		// wrong io write
 		// {"TWrongWrite", sampleEmptyHSReq.Marshal()[:7], sampleEmptyHSResp.Marshal(), true },
 		// wrong magic
-		{"TWrongMagic", p2pcommon.HSHeadReq{0x0001, []p2pcommon.P2PVersion{p2pcommon.P2PVersion033}}.Marshal(), p2pcommon.P2PVersion033, 0, false, sampleEmptyHSResp.Marshal(), true},
+		{"TWrongMagic", p2pcommon.HSHeadReq{0x0001, []p2pcommon.P2PVersion{p2pcommon.P2PVersion230}}.Marshal(), p2pcommon.P2PVersion230, 0, false, sampleEmptyHSResp.Marshal(), true},
 		// not supported version (or wrong version)
 		{"TNoVersion", p2pcommon.HSHeadReq{p2pcommon.MAGICMain, []p2pcommon.P2PVersion{0x000010, 0x030405, 0x000101}}.Marshal(), p2pcommon.P2PVersionUnknown, 0, false, p2pcommon.HSHeadResp{p2pcommon.HSError, p2pcommon.HSCodeNoMatchedVersion}.Marshal(), true},
 		// protocol handshake failed
-		{"TVersionHSFailed", p2pcommon.HSHeadReq{p2pcommon.MAGICMain, []p2pcommon.P2PVersion{p2pcommon.P2PVersion033, p2pcommon.P2PVersion032, 0x000101}}.Marshal(), p2pcommon.P2PVersion033, 0, true, p2pcommon.HSHeadResp{p2pcommon.MAGICMain, p2pcommon.P2PVersion033.Uint32()}.Marshal(), true},
+		{"TVersionHSFailed", p2pcommon.HSHeadReq{p2pcommon.MAGICMain, []p2pcommon.P2PVersion{p2pcommon.P2PVersion230, p2pcommon.P2PVersion200, 0x000101}}.Marshal(), p2pcommon.P2PVersion230, 0, true, p2pcommon.HSHeadResp{p2pcommon.MAGICMain, p2pcommon.P2PVersion230.Uint32()}.Marshal(), true},
 
 		// timeout while read, no reply to remote
-		{"TTimeoutRead", p2pcommon.HSHeadReq{p2pcommon.MAGICMain, []p2pcommon.P2PVersion{p2pcommon.P2PVersion033, p2pcommon.P2PVersion032, 0x000101}}.Marshal(), p2pcommon.P2PVersion033, 1, false, []byte{}, true},
+		{"TTimeoutRead", p2pcommon.HSHeadReq{p2pcommon.MAGICMain, []p2pcommon.P2PVersion{p2pcommon.P2PVersion230, p2pcommon.P2PVersion200, 0x000101}}.Marshal(), p2pcommon.P2PVersion230, 1, false, []byte{}, true},
 		// timeout while writing, sent but remote not receiving fast
-		{"TTimeoutWrite", p2pcommon.HSHeadReq{p2pcommon.MAGICMain, []p2pcommon.P2PVersion{p2pcommon.P2PVersion033, p2pcommon.P2PVersion032, 0x000101}}.Marshal(), p2pcommon.P2PVersion033, 2, false, p2pcommon.HSHeadResp{p2pcommon.MAGICMain, p2pcommon.P2PVersion033.Uint32()}.Marshal(), true},
+		{"TTimeoutWrite", p2pcommon.HSHeadReq{p2pcommon.MAGICMain, []p2pcommon.P2PVersion{p2pcommon.P2PVersion230, p2pcommon.P2PVersion200, 0x000101}}.Marshal(), p2pcommon.P2PVersion230, 2, false, p2pcommon.HSHeadResp{p2pcommon.MAGICMain, p2pcommon.P2PVersion230.Uint32()}.Marshal(), true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -191,7 +192,7 @@ func TestOutboundWireHandshaker_handleOutboundPeer(t *testing.T) {
 	sampleResult := &p2pcommon.HandshakeResult{}
 	logger := log.NewLogger("p2p.test")
 	// This bytes is actually hard-coded in source handshake_v2.go.
-	outBytes := p2pcommon.HSHeadReq{p2pcommon.MAGICMain, []p2pcommon.P2PVersion{p2pcommon.P2PVersion200, p2pcommon.P2PVersion033, p2pcommon.P2PVersion032, p2pcommon.P2PVersion031}}.Marshal()
+	outBytes := p2pcommon.HSHeadReq{p2pcommon.MAGICMain, []p2pcommon.P2PVersion{p2pcommon.P2PVersion230, p2pcommon.P2PVersion200}}.Marshal()
 
 	tests := []struct {
 		name string
@@ -204,11 +205,10 @@ func TestOutboundWireHandshaker_handleOutboundPeer(t *testing.T) {
 		wantErr bool
 	}{
 		// remote listening peer accept my best p2p version
-		{"TCurrentVersion", p2pcommon.P2PVersion200, 0, false, p2pcommon.HSHeadResp{p2pcommon.MAGICMain, p2pcommon.P2PVersion200.Uint32()}.Marshal(), false},
+		{"TCurrentVersion", p2pcommon.P2PVersion230, 0, false, p2pcommon.HSHeadResp{p2pcommon.MAGICMain, p2pcommon.P2PVersion230.Uint32()}.Marshal(), false},
 		// remote listening peer can connect, but old p2p version
-		{"TOldVersion", p2pcommon.P2PVersion032, 0, false, p2pcommon.HSHeadResp{p2pcommon.MAGICMain, p2pcommon.P2PVersion032.Uint32()}.Marshal(), false},
-		{"TOlderVersion", p2pcommon.P2PVersion031, 0, false, p2pcommon.HSHeadResp{p2pcommon.MAGICMain, p2pcommon.P2PVersion031.Uint32()}.Marshal(), false},
-		{"TOldestVersion", p2pcommon.P2PVersion030, 0, false, p2pcommon.HSHeadResp{p2pcommon.MAGICMain, p2pcommon.P2PVersion030.Uint32()}.Marshal(), false},
+		{"TLegacyVersion", p2pcommon.P2PVersion200, 0, false, p2pcommon.HSHeadResp{p2pcommon.MAGICMain, p2pcommon.P2PVersion200.Uint32()}.Marshal(), false},
+		{"TTooOldVersion", p2pcommon.P2PVersion033, 0, false, p2pcommon.HSHeadResp{0, p2pcommon.HSCodeNoMatchedVersion}.Marshal(), true},
 		// wrong io read
 		{"TWrongResp", p2pcommon.P2PVersion032, 0, false, outBytes[:6], true},
 		// {"TWrongWrite", sampleEmptyHSReq.Marshal()[:7], sampleEmptyHSResp.Marshal(), true },

@@ -43,25 +43,25 @@ const (
 
 	// not supported versions
 	P2PVersion030     P2PVersion = 0x00000300
-
-	// legacy versions
 	P2PVersion031     P2PVersion = 0x00000301 // pseudo version for supporting multi version
 	P2PVersion032     P2PVersion = 0x00000302 // added equal check of genesis block hash
-
-	// current version
 	P2PVersion033     P2PVersion = 0x00000303 // support hardfork (chainid is changed)
 
+	// legacy versions
 	P2PVersion200     P2PVersion = 0x00020000 // following aergo version. support peer role and multiple addresses
+
+	// current version
+	P2PVersion230     P2PVersion = 0x00020300 // support multi session for a raft peer
 )
 
 // AcceptedInboundVersions is list of versions this aergosvr supports. The first is the best recommended version.
-var AcceptedInboundVersions = []P2PVersion{P2PVersion200, P2PVersion033, P2PVersion032, P2PVersion031}
-var AttemptingOutboundVersions = []P2PVersion{P2PVersion200, P2PVersion033, P2PVersion032, P2PVersion031}
-var ExperimentalVersions = []P2PVersion{P2PVersion200}
+var AcceptedInboundVersions = []P2PVersion{P2PVersion230, P2PVersion200}
+var AttemptingOutboundVersions = []P2PVersion{P2PVersion230, P2PVersion200}
 
 // context of multiaddr, as higher type of p2p message
 const (
 	P2PSubAddr       core.ProtocolID = "/aergop2p"
+	RaftSubAddr       core.ProtocolID = "/aergop2p/raft"
 	RaftSnapSubAddr  core.ProtocolID = "/aergop2p/raftsnap"
 )
 
@@ -103,10 +103,10 @@ const (
 )
 
 const (
-	// DesignatedNodeTTL is time to determine which the remote designated peer is not working.
+	// DesignatedNodeTTL is time to determine whether the remote designated peer is not working.
 	DesignatedNodeTTL = time.Minute * 60
 
-	// DefaultNodeTTL is time to determine which the remote peer is not working.
+	// DefaultNodeTTL is time to determine whether the remote peer is not working.
 	DefaultNodeTTL = time.Minute * 10
 )
 

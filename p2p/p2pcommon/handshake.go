@@ -8,6 +8,7 @@ package p2pcommon
 import (
 	"context"
 	"encoding/binary"
+	"fmt"
 	"github.com/aergoio/aergo/types"
 	"io"
 	"time"
@@ -109,4 +110,12 @@ func (h HSHeadResp) Marshal() []byte {
 func (h *HSHeadResp) Unmarshal(b []byte) {
 	h.Magic = binary.BigEndian.Uint32(b)
 	h.RespCode = binary.BigEndian.Uint32(b[4:])
+}
+
+func (h *HSHeadResp) String() string {
+	if h.Magic != 0 {
+		return "succ:"+P2PVersion(h.RespCode).String()
+	} else {
+		return fmt.Sprintf("err:%d",h.RespCode)
+	}
 }
