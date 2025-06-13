@@ -1,6 +1,7 @@
-FROM golang:1.19.0-bullseye as builder
+FROM golang:1.23-alpine3.21
 ARG GIT_TAG=master
-RUN apt-get -y update && apt-get -y install build-essential git cmake binutils m4 file
+ENV CGO_CFLAGS="-D_LARGEFILE64_SOURCE"
+RUN apk update && apk add git cmake build-base m4
 RUN git clone --branch ${GIT_TAG} --recursive https://github.com/aergoio/aergo.git \
     && cd aergo \
     && make aergosvr polaris colaris aergocli aergoluac brick

@@ -31,3 +31,6 @@ venv
 __pycache__
 
 .DS_Store
+.tool-versions
+/arglog.toml
+/libtool/src

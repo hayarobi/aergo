@@ -6,8 +6,6 @@ package main
 
 import (
 	"fmt"
-	"os"
-
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/v2/account"
 	"github.com/aergoio/aergo/v2/chain"
@@ -23,6 +21,7 @@ import (
 	"github.com/aergoio/aergo/v2/rpc"
 	"github.com/aergoio/aergo/v2/syncer"
 	"github.com/spf13/cobra"
+	"os"
 )
 
 var (
@@ -94,6 +93,8 @@ func initConfig() {
 }
 
 func rootRun(cmd *cobra.Command, args []string) {
+	// Set caller info to relative file path
+	log.SetRelativeLogPathForProject()
 	svrlog = log.NewLogger("asvr")
 	svrlog.Info().Str("revision", gitRevision).Str("branch", gitBranch).Msg("AERGO SVR STARTED")
 

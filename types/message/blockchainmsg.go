@@ -6,6 +6,7 @@
 package message
 
 import (
+	"context"
 	"math/big"
 
 	"github.com/aergoio/aergo/v2/types"
@@ -92,6 +93,16 @@ type GetQuery struct {
 	Contract  []byte
 	Queryinfo []byte
 }
+
+// GetQueryNonBlock is request for non-blocking manner
+type GetQueryNonBlock struct {
+	// TODO yes, it's not recommended way but I don't have better idea for now.
+	Ctx           context.Context
+	Contract      []byte
+	QueryInfo     []byte
+	ReturnChannel chan GetQueryRsp
+}
+
 type GetQueryRsp struct {
 	Result []byte
 	Err    error
